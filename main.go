@@ -65,6 +65,21 @@ func parseGlobalFlags(args []string) []string {
 	return remaining
 }
 
+func reorderFlags(args []string) []string {
+	var flags, positional []string
+	for i := 0; i < len(args); i++ {
+		if strings.HasPrefix(args[i], "-") {
+			flags = append(flags, args[i])
+			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+				flags = append(flags, args[i+1])
+				i++
+			}
+		} else {
+			positional = append(positional, args[i])
+		}
+	}
+	return append(flags, positional...)
+}
 func packCmd(args []string) {
 	fs := flag.NewFlagSet("pack", flag.ExitOnError)
 	output := fs.String("o", "", "Output .kbpkg file path")
@@ -75,9 +90,14 @@ func packCmd(args []string) {
 	splashPath := fs.String("splash", "", "Splash image path (png/jpg/gif/apng)")
 	compression := fs.String("compression", "zstd", "Compression format: zstd, gzip")
 	level := fs.Int("level", 0, "Compression level (zstd: 1-19, gzip: 1-9, 0=default)")
-	fs.Parse(args)
+	fs.Parse(reorderFlags(args))
 
-	if fs.NArg() < 1 || *version == "" || *appName == "" {
+	srcDir := ""
+	if fs.NArg() >= 1 {
+		srcDir = fs.Arg(0)
+	}
+
+	if srcDir == "" || *version == "" || *appName == "" {
 		fmt.Fprintln(os.Stderr, "Usage: windows-portable-packager pack <source-dir> -app <name> -v <version> [-o <output>] [-arch amd64|386|arm64]")
 		fmt.Fprintln(os.Stderr, "\nExample:")
 		fmt.Fprintln(os.Stderr, "  windows-portable-packager pack dist/win-unpacked -app KeyBridge -v 1.0.0 -arch amd64")
@@ -90,7 +110,7 @@ func packCmd(args []string) {
 		os.Exit(1)
 	}
 
-	srcDir := fs.Arg(0)
+	srcDir = fs.Arg(0)
 	exe := *exeName
 	if exe == "" {
 		exe = *appName + ".exe"
