@@ -61,6 +61,8 @@ func packCmd(args []string) {
 	arch := fs.String("arch", "amd64", "Target architecture: amd64, 386, arm64")
 	exeName := fs.String("exe", "", "Main executable name (default: <app>.exe)")
 	splashPath := fs.String("splash", "", "Splash image path (png/jpg/gif/apng)")
+	compression := fs.String("compression", "zstd", "Compression format: zstd, gzip")
+	level := fs.Int("level", 0, "Compression level (zstd: 1-19, gzip: 1-9, 0=default)")
 	fs.Parse(args)
 
 	if fs.NArg() < 1 || *version == "" || *appName == "" {
@@ -85,7 +87,17 @@ func packCmd(args []string) {
 		*output = fmt.Sprintf("%s-%s-%s%s", *appName, *version, *arch, app.PackageExt)
 	}
 
-	if err := app.Pack(srcDir, *output, *appName, *version, *arch, exe, *splashPath); err != nil {
+	opts := app.PackOptions{Level: *level}
+	switch *compression {
+	case "gzip":
+		opts.Compression = app.CompressionGzip
+	case "xz":
+		opts.Compression = app.CompressionXZ
+	default:
+		opts.Compression = app.CompressionZstd
+	}
+
+	if err := app.Pack(srcDir, *output, *appName, *version, *arch, exe, *splashPath, opts); err != nil {
 		fmt.Fprintf(os.Stderr, "Pack error: %v\n", err)
 		os.Exit(1)
 	}

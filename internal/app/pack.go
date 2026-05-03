@@ -10,11 +10,31 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/klauspost/compress/zstd"
+	"github.com/ulikunitz/xz"
 )
+
+type Compression int
+
+const (
+	CompressionZstd Compression = iota
+	CompressionGzip
+	CompressionXZ
+)
+
+type PackOptions struct {
+	Compression Compression
+	Level       int
+}
 
 const SplashName = "_splash"
 
-func Pack(srcDir, outputPath, appName, version, arch, exeName, splashPath string) error {
+func Pack(srcDir, outputPath, appName, version, arch, exeName, splashPath string, opts ...PackOptions) error {
+	opt := PackOptions{Compression: CompressionZstd, Level: 0}
+	if len(opts) > 0 {
+		opt = opts[0]
+	}
 	if info, err := os.Stat(srcDir); err != nil {
 		return fmt.Errorf("source directory: %w", err)
 	} else if !info.IsDir() {
@@ -51,10 +71,48 @@ func Pack(srcDir, outputPath, appName, version, arch, exeName, splashPath string
 	}
 	defer outFile.Close()
 
-	gw := gzip.NewWriter(outFile)
-	defer gw.Close()
+	var compWriter io.WriteCloser
+	switch opt.Compression {
+	case CompressionGzip:
+		level := gzip.DefaultCompression
+		if opt.Level >= 1 && opt.Level <= 9 {
+			level = opt.Level
+		}
+		compWriter, err = gzip.NewWriterLevel(outFile, level)
+		if err != nil {
+			return fmt.Errorf("gzip writer: %w", err)
+		}
+	case CompressionXZ:
+		xzConfig := xz.WriterConfig{}
+		if opt.Level >= 1 && opt.Level <= 9 {
+			xzConfig.DictCap = xzDictCapForLevel(opt.Level)
+		}
+		compWriter, err = xzConfig.NewWriter(outFile)
+		if err != nil {
+			return fmt.Errorf("xz writer: %w", err)
+		}
+	default:
+		zstdLevel := zstd.SpeedDefault
+		if opt.Level >= 1 && opt.Level <= 19 {
+			switch {
+			case opt.Level <= 3:
+				zstdLevel = zstd.SpeedFastest
+			case opt.Level <= 7:
+				zstdLevel = zstd.SpeedDefault
+			case opt.Level <= 12:
+				zstdLevel = zstd.SpeedBetterCompression
+			default:
+				zstdLevel = zstd.SpeedBestCompression
+			}
+		}
+		compWriter, err = zstd.NewWriter(outFile, zstd.WithEncoderLevel(zstdLevel))
+		if err != nil {
+			return fmt.Errorf("zstd writer: %w", err)
+		}
+	}
+	defer compWriter.Close()
 
-	tw := tar.NewWriter(gw)
+	tw := tar.NewWriter(compWriter)
 	defer tw.Close()
 
 	manifestData, err := json.MarshalIndent(manifest, "", "  ")
@@ -146,7 +204,7 @@ func Pack(srcDir, outputPath, appName, version, arch, exeName, splashPath string
 	if err := tw.Close(); err != nil {
 		return err
 	}
-	if err := gw.Close(); err != nil {
+	if err := compWriter.Close(); err != nil {
 		return err
 	}
 
@@ -155,4 +213,26 @@ func Pack(srcDir, outputPath, appName, version, arch, exeName, splashPath string
 	fmt.Printf("Package created: %s (%.1f MB)\n", outputPath, sizeMB)
 
 	return nil
+}
+
+func xzDictCapForLevel(level int) int {
+	caps := []int{
+		1 << 16,
+		1 << 17,
+		1 << 18,
+		1 << 19,
+		1 << 20,
+		1 << 21,
+		1 << 22,
+		1 << 23,
+		1 << 24,
+	}
+	idx := level - 1
+	if idx < 0 {
+		idx = 0
+	}
+	if idx >= len(caps) {
+		idx = len(caps) - 1
+	}
+	return caps[idx]
 }

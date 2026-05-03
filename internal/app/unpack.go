@@ -10,6 +10,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/klauspost/compress/zstd"
+	"github.com/ulikunitz/xz"
 )
 
 func ReadPackageManifest(pkgPath string) (*Manifest, error) {
@@ -25,14 +28,45 @@ func ReadEmbeddedManifest() (*Manifest, error) {
 	return readManifestFromReader(bytes.NewReader(embeddedPackage))
 }
 
-func readManifestFromReader(r io.Reader) (*Manifest, error) {
-	gz, err := gzip.NewReader(r)
-	if err != nil {
-		return nil, fmt.Errorf("gzip: %w", err)
+func newDecompressReader(r io.Reader) (io.ReadCloser, error) {
+	buf := make([]byte, 6)
+	n, err := io.ReadFull(r, buf)
+	if err != nil && n < 2 {
+		return nil, fmt.Errorf("read header: %w", err)
 	}
-	defer gz.Close()
+	combined := io.MultiReader(bytes.NewReader(buf[:n]), r)
 
-	tr := tar.NewReader(gz)
+	if n >= 4 && buf[0] == 0x28 && buf[1] == 0xB5 && buf[2] == 0x2F && buf[3] == 0xFD {
+		dec, err := zstd.NewReader(combined)
+		if err != nil {
+			return nil, fmt.Errorf("zstd reader: %w", err)
+		}
+		return dec.IOReadCloser(), nil
+	}
+
+	if n >= 2 && buf[0] == 0x1F && buf[1] == 0x8B {
+		return gzip.NewReader(combined)
+	}
+
+	if n >= 6 && buf[0] == 0xFD && buf[1] == 0x37 && buf[2] == 0x7A && buf[3] == 0x58 && buf[4] == 0x5A && buf[5] == 0x00 {
+		xr, err := xz.NewReader(combined)
+		if err != nil {
+			return nil, fmt.Errorf("xz reader: %w", err)
+		}
+		return io.NopCloser(xr), nil
+	}
+
+	return nil, fmt.Errorf("unknown compression format (magic: %x)", buf[:n])
+}
+
+func readManifestFromReader(r io.Reader) (*Manifest, error) {
+	dr, err := newDecompressReader(r)
+	if err != nil {
+		return nil, err
+	}
+	defer dr.Close()
+
+	tr := tar.NewReader(dr)
 
 	header, err := tr.Next()
 	if err != nil {
@@ -81,13 +115,13 @@ func unpackFromReader(r io.Reader, versionDir string) (*Manifest, error) {
 		return nil, fmt.Errorf("create version dir: %w", err)
 	}
 
-	gz, err := gzip.NewReader(r)
+	dr, err := newDecompressReader(r)
 	if err != nil {
-		return nil, fmt.Errorf("gzip: %w", err)
+		return nil, err
 	}
-	defer gz.Close()
+	defer dr.Close()
 
-	tr := tar.NewReader(gz)
+	tr := tar.NewReader(dr)
 
 	var manifest *Manifest
 	fileCount := 0
