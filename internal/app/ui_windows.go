@@ -10,10 +10,11 @@ import (
 )
 
 var (
-	kernel32        = windows.NewLazySystemDLL("kernel32.dll")
-	user32          = windows.NewLazySystemDLL("user32.dll")
-	procAttachConsole = kernel32.NewProc("AttachConsole")
-	procMessageBoxW   = user32.NewProc("MessageBoxW")
+	kernel32                  = windows.NewLazySystemDLL("kernel32.dll")
+	user32                    = windows.NewLazySystemDLL("user32.dll")
+	procAttachConsole         = kernel32.NewProc("AttachConsole")
+	procGetConsoleProcessList = kernel32.NewProc("GetConsoleProcessList")
+	procMessageBoxW           = user32.NewProc("MessageBoxW")
 )
 
 const (
@@ -33,11 +34,17 @@ var isTerminal bool
 
 func init() {
 	ret, _, _ := procAttachConsole.Call(attachParentProcess)
-	isTerminal = ret != 0
-
-	if !isTerminal {
-		isTerminal = isStdoutTerminal()
+	if ret != 0 {
+		isTerminal = true
+		return
 	}
+
+	if !isStdoutTerminal() {
+		isTerminal = false
+		return
+	}
+
+	isTerminal = consoleProcessCount() > 1
 }
 
 func isStdoutTerminal() bool {
@@ -45,6 +52,12 @@ func isStdoutTerminal() bool {
 	handle := windows.Handle(os.Stdout.Fd())
 	err := windows.GetConsoleMode(handle, &mode)
 	return err == nil
+}
+
+func consoleProcessCount() uint32 {
+	var list [4]uint32
+	ret, _, _ := procGetConsoleProcessList.Call(uintptr(unsafe.Pointer(&list[0])), uintptr(len(list)))
+	return uint32(ret)
 }
 
 func IsTerminal() bool {
