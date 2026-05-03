@@ -1,14 +1,14 @@
 package app
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/cespare/xxhash/v2"
 )
 
 type Manifest struct {
@@ -33,11 +33,11 @@ func ComputeFileHash(path string) (string, error) {
 	}
 	defer f.Close()
 
-	h := sha256.New()
+	h := xxhash.New()
 	if _, err := io.Copy(h, f); err != nil {
 		return "", err
 	}
-	return hex.EncodeToString(h.Sum(nil)), nil
+	return fmt.Sprintf("%016x", h.Sum64()), nil
 }
 
 func GenerateManifest(rootDir, appName, version, arch, exeName, splashExt string) (*Manifest, error) {

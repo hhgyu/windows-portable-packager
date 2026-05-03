@@ -30,11 +30,11 @@ func TestComputeFileHash(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(hash) != 64 {
-		t.Fatalf("expected 64-char hex hash, got %d chars", len(hash))
+	if len(hash) != 16 {
+		t.Fatalf("expected 16-char hex hash, got %d chars", len(hash))
 	}
 
-	expected := "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
+	expected := "45ab6734b21e6968"
 	if hash != expected {
 		t.Fatalf("hash mismatch:\n  got:  %s\n  want: %s", hash, expected)
 	}
