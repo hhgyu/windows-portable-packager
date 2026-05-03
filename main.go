@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/hhgyu/windows-portable-packager/internal/app"
 )
@@ -42,12 +43,16 @@ func runDefault() {
 }
 
 func parseGlobalFlags(args []string) []string {
-	remaining := args[:0]
-	for _, arg := range args {
+	var remaining []string
+	for i, arg := range args {
 		if arg == "-v" || arg == "--verbose" {
 			app.SetLogLevel(app.LogLevelVerbose)
 		} else {
 			remaining = append(remaining, arg)
+			if !strings.HasPrefix(arg, "-") {
+				remaining = append(remaining, args[i+1:]...)
+				break
+			}
 		}
 	}
 	return remaining
