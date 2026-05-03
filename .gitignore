@@ -3,3 +3,4 @@ dist/
 !bin/*.js
 !hooks/*.js
 node_modules/
+resource.syso
