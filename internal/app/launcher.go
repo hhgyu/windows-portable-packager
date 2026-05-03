@@ -19,7 +19,7 @@ func runFromEmbedded(exeOverride string) error {
 	if err != nil {
 		return fmt.Errorf("read embedded package: %w", err)
 	}
-	fmt.Printf("Package: %s %s (%s)\n", manifest.AppName, manifest.Version, manifest.Arch)
+	LogVerbose("Package: %s %s (%s)", manifest.AppName, manifest.Version, manifest.Arch)
 
 	config := NewConfig(manifest.AppName, manifest.Version, manifest.Arch)
 
@@ -31,13 +31,14 @@ func runFromEmbedded(exeOverride string) error {
 		}
 		ok, verifyErr := installedManifest.VerifySingle(config.VersionDir, exeName)
 		if verifyErr == nil && ok {
-			fmt.Println("Already installed and verified, launching...")
+			LogVerbose("Already installed and verified, launching...")
 			CleanOldVersions(config, []string{manifest.Version})
 			return launch(filepath.Join(config.VersionDir, exeName))
 		}
 	}
 
-	fmt.Printf("Extracting to %s...\n", config.VersionDir)
+	Log("Installing %s %s...", manifest.AppName, manifest.Version)
+	LogVerbose("Extracting to %s...", config.VersionDir)
 	extracted, err := UnpackEmbedded(config.VersionDir)
 	if err != nil {
 		return fmt.Errorf("unpack: %w", err)
@@ -55,15 +56,15 @@ func runFromEmbedded(exeOverride string) error {
 func runFromFile(pkgPath, exeOverride string) error {
 	pkg, err := FindPackage(pkgPath)
 	if err != nil {
-		fmt.Println("No package found, looking for installed version...")
-		return launchLatest(exeOverride)
+	LogVerbose("No package found, looking for installed version...")
+	return launchLatest(exeOverride)
 	}
 
 	manifest, err := ReadPackageManifest(pkg)
 	if err != nil {
 		return fmt.Errorf("read package: %w", err)
 	}
-	fmt.Printf("Package: %s %s (%s)\n", manifest.AppName, manifest.Version, manifest.Arch)
+	LogVerbose("Package: %s %s (%s)", manifest.AppName, manifest.Version, manifest.Arch)
 
 	config := NewConfig(manifest.AppName, manifest.Version, manifest.Arch)
 
@@ -75,13 +76,14 @@ func runFromFile(pkgPath, exeOverride string) error {
 		}
 		ok, verifyErr := installedManifest.VerifySingle(config.VersionDir, exeName)
 		if verifyErr == nil && ok {
-			fmt.Println("Already installed and verified, launching...")
+			LogVerbose("Already installed and verified, launching...")
 			CleanOldVersions(config, []string{manifest.Version})
 			return launch(filepath.Join(config.VersionDir, exeName))
 		}
 	}
 
-	fmt.Printf("Extracting to %s...\n", config.VersionDir)
+	Log("Installing %s %s...", manifest.AppName, manifest.Version)
+	LogVerbose("Extracting to %s...", config.VersionDir)
 	extracted, err := Unpack(pkg, config.VersionDir)
 	if err != nil {
 		return fmt.Errorf("unpack: %w", err)
@@ -121,7 +123,7 @@ func launch(exePath string) error {
 		return fmt.Errorf("exe not found: %s", exePath)
 	}
 
-	fmt.Printf("Launching %s\n", filepath.Base(exePath))
+	LogVerbose("Launching %s", filepath.Base(exePath))
 
 	cmd := exec.Command(exePath)
 	cmd.Dir = filepath.Dir(exePath)

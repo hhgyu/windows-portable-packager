@@ -50,15 +50,42 @@ func CleanOldVersions(config *Config, keepVersions []string) (int, error) {
 		}
 
 		versionDir := filepath.Join(config.AppDir, version)
-		fmt.Printf("Removing old version: %s\n", version)
-		if err := os.RemoveAll(versionDir); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: failed to remove %s: %v\n", version, err)
+		LogVerbose("Removing old version: %s", version)
+
+		if err := removeWithRetry(config.AppName, version, versionDir); err != nil {
+			Log("Warning: failed to remove old version %s: %v", version, err)
 			continue
 		}
 		removed++
 	}
 
 	return removed, nil
+}
+
+func removeWithRetry(appName, version, versionDir string) error {
+	const maxRetries = 5
+	for i := 0; i < maxRetries; i++ {
+		err := os.RemoveAll(versionDir)
+		if err == nil {
+			return nil
+		}
+
+		if i == maxRetries-1 {
+			return err
+		}
+
+		title := appName + " - Update"
+		message := "Previous version " + version + " is still running.\n\nPlease close it and click Retry to continue."
+		if IsTerminal() {
+			Log("Previous version %s is still in use. Waiting 3 seconds... (attempt %d/%d)", version, i+1, maxRetries-1)
+			time.Sleep(3 * time.Second)
+		} else {
+			if !ShowRetryDialog(title, message) {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func GetLatestVersion(config *Config) (string, error) {

@@ -9,33 +9,48 @@ import (
 )
 
 func main() {
-	if len(os.Args) < 2 {
+	args := os.Args[1:]
+	args = parseGlobalFlags(args)
+
+	if len(args) == 0 {
 		runDefault()
 		return
 	}
 
-	switch os.Args[1] {
+	switch args[0] {
 	case "pack":
-		packCmd(os.Args[2:])
+		packCmd(args[1:])
 	case "run":
-		runCmd(os.Args[2:])
+		runCmd(args[1:])
 	case "verify":
-		verifyCmd(os.Args[2:])
+		verifyCmd(args[1:])
 	case "clean":
-		cleanCmd(os.Args[2:])
+		cleanCmd(args[1:])
 	case "version":
 		fmt.Println("windows-portable-packager 1.0.0")
 	case "help", "--help", "-h":
 		printHelp()
 	default:
-		fmt.Fprintf(os.Stderr, "Unknown command: %s\n\n", os.Args[1])
+		fmt.Fprintf(os.Stderr, "Unknown command: %s\n\n", args[0])
 		printHelp()
 		os.Exit(1)
 	}
 }
 
 func runDefault() {
-	runCmd(os.Args[1:])
+	runCmd(nil)
+}
+
+func parseGlobalFlags(args []string) []string {
+	remaining := args[:0]
+	for _, arg := range args {
+		if arg == "-v" || arg == "--verbose" {
+			app.SetLogLevel(app.LogLevelVerbose)
+		} else {
+			remaining = append(remaining, arg)
+		}
+	}
+	return remaining
 }
 
 func packCmd(args []string) {
