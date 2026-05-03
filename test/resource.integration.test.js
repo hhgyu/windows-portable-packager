@@ -70,10 +70,20 @@ function generateWithGoversioninfo(tmpDir, pkg, goArch, iconPath) {
   return sysoPath;
 }
 
+function parseCoffHeader(buf) {
+  return {
+    machine: buf.readUInt16LE(0),
+    numberOfSections: buf.readUInt16LE(2),
+    timeDateStamp: buf.readUInt32LE(4),
+    pointerToSymbolTable: buf.readUInt32LE(8),
+    numberOfSymbols: buf.readUInt32LE(12),
+    sizeOfOptionalHeader: buf.readUInt16LE(16),
+    characteristics: buf.readUInt16LE(18),
+  };
+}
+
 function parseCoffSections(buf) {
   const numSections = buf.readUInt16LE(2);
-  const symTableOff = buf.readUInt32LE(12);
-  const numSymbols = buf.readUInt32LE(16);
   const sections = [];
   for (let i = 0; i < numSections; i++) {
     const off = 20 + i * 40;
@@ -117,6 +127,44 @@ describe("resource.js vs goversioninfo integration", () => {
     const theirBuf = fs.readFileSync(theirSyso);
 
     expect(ourBuf.readUInt16LE(0)).toBe(theirBuf.readUInt16LE(0));
+  });
+
+  test("COFF 헤더 필드가 goversioninfo와 동일", () => {
+    const pkg = { name: "TestApp", version: "1.2.3", description: "Test" };
+    const ourSyso = path.join(tmpDir, "ours-hdr.syso");
+    const theirSyso = generateWithGoversioninfo(tmpDir, pkg, "amd64", null);
+
+    generateSyso(tmpDir, pkg, "amd64", ourSyso, null);
+
+    const ourHdr = parseCoffHeader(fs.readFileSync(ourSyso));
+    const theirHdr = parseCoffHeader(fs.readFileSync(theirSyso));
+
+    expect(ourHdr.machine).toBe(theirHdr.machine);
+    expect(ourHdr.numberOfSections).toBe(theirHdr.numberOfSections);
+    expect(ourHdr.sizeOfOptionalHeader).toBe(theirHdr.sizeOfOptionalHeader);
+    expect(ourHdr.sizeOfOptionalHeader).toBe(0);
+    expect(ourHdr.numberOfSymbols).toBe(theirHdr.numberOfSymbols);
+  });
+
+  test("생성된 .syso로 go build 성공", () => {
+    const pkg = { name: "TestApp", version: "1.2.3", description: "Test" };
+    const sysoPath = path.join(tmpDir, "resource.syso");
+    generateSyso(tmpDir, pkg, "amd64", sysoPath, null);
+
+    const goSrc = path.join(tmpDir, "gobuild");
+    fs.mkdirSync(goSrc);
+    fs.writeFileSync(path.join(goSrc, "go.mod"), "module testbuild\n\ngo 1.21\n");
+    fs.writeFileSync(path.join(goSrc, "main.go"), "package main\n\nfunc main() {}\n");
+    fs.copyFileSync(sysoPath, path.join(goSrc, "resource.syso"));
+
+    const exePath = path.join(tmpDir, "testbuild.exe");
+    execSync(`go build -ldflags="-s -w" -o "${exePath}" .`, {
+      cwd: goSrc,
+      env: { ...process.env, GOARCH: "amd64", GOOS: "windows" },
+      stdio: "pipe",
+    });
+
+    expect(fs.existsSync(exePath)).toBe(true);
   });
 
   test("relocation 수가 goversioninfo와 동일", () => {

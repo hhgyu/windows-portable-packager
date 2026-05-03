@@ -106,17 +106,22 @@ describe("generateSyso", () => {
 
   test("symbol table offset이 올바르게 설정됨", () => {
     const buf = makeSyso(makePkg(), "amd64");
-    const symTableOff = buf.readUInt32LE(12);
+    const symTableOff = buf.readUInt32LE(8);
     expect(symTableOff).toBeGreaterThan(0);
     expect(symTableOff).toBeLessThan(buf.length);
   });
 
   test("string table 4바이트로 끝남", () => {
     const buf = makeSyso(makePkg(), "amd64");
-    const symTableOff = buf.readUInt32LE(12);
-    const numSymbols = buf.readUInt32LE(16);
+    const symTableOff = buf.readUInt32LE(8);
+    const numSymbols = buf.readUInt32LE(12);
     const strTableOff = symTableOff + numSymbols * 18;
     expect(buf.readUInt32LE(strTableOff)).toBe(4);
+  });
+
+  test("SizeOfOptionalHeader가 0임", () => {
+    const buf = makeSyso(makePkg(), "amd64");
+    expect(buf.readUInt16LE(16)).toBe(0);
   });
 
   test("companyName이 author에서 추출됨", () => {
