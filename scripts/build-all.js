@@ -12,13 +12,11 @@ fs.mkdirSync(outDir, { recursive: true });
 for (const arch of archs) {
   const out = path.join(outDir, `windows-portable-packager-${arch}.exe`);
   console.log(`Building ${arch} -> ${out}`);
-
   execSync(`go build -ldflags="-s -w" -o "${out}" .`, {
     stdio: "inherit",
     cwd: path.resolve(__dirname, ".."),
     env: { ...process.env, GOARCH: arch, GOOS: "windows" },
   });
-
   const sizeMB = (fs.statSync(out).size / 1024 / 1024).toFixed(2);
   console.log(`  OK (${sizeMB} MB)`);
 }

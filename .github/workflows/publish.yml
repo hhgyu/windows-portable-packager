@@ -31,6 +31,9 @@ jobs:
       - name: Run Node tests
         run: npm run test:node
 
+      - name: Run integration tests
+        run: npm run test:integration
+
   publish:
     name: Publish
     needs: test

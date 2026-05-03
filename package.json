@@ -21,7 +21,12 @@
   "jest": {
     "testEnvironment": "node",
     "testMatch": [
-      "**/test/**/*.test.js"
+      "**/test/**/*.test.js",
+      "!**/test/**/*.integration.test.js"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "\\.integration\\.test\\.js$"
     ]
   },
   "scripts": {
@@ -30,6 +35,7 @@
     "build": "npm run build:go",
     "test:go": "go test ./internal/app/ -v -count=1",
     "test:node": "jest",
+    "test:integration": "jest --config jest.integration.config.js",
     "test": "npm run test:go && npm run test:node",
     "prepack": "npm run build:all"
   },
@@ -59,4 +65,5 @@
     "jest": "^30.3.0"
   }
 }
+
 

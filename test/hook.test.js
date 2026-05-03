@@ -169,6 +169,7 @@ describe("runHook", () => {
       packagerDir,
       exec: (bin, args) => execCalls.push({ bin, args }),
       execGo: (cmd, cwd, arch) => execGoCalls.push({ cmd, cwd, arch }),
+      generateSysoFn: () => {},
     });
 
     expect(result.skipped).toBe(false);
@@ -190,6 +191,7 @@ describe("runHook", () => {
       packagerDir,
       exec: () => { throw new Error("pack failed"); },
       execGo: () => {},
+      generateSysoFn: () => {},
     });
 
     expect(result.skipped).toBe(true);
@@ -208,6 +210,7 @@ describe("runHook", () => {
       packagerDir,
       exec: () => {},
       execGo: () => {},
+      generateSysoFn: () => {},
     });
 
     expect(fs.readFileSync(embedPath, "utf8")).toMatch("PLACEHOLDER");
