@@ -77,9 +77,6 @@ func messageBox(title, message string, flags uintptr) int {
 }
 
 func ShowRetryDialog(title, message string) bool {
-	if isTerminal {
-		return false
-	}
 	ret := messageBox(title, message, mbRetryCancel|mbIconWarning)
 	return ret == idRetry
 }

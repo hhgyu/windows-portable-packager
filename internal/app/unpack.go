@@ -226,8 +226,14 @@ func waitForVersionDirUnlocked(versionDir string) error {
 			return nil
 		}
 
+		shown := locked[:min(len(locked), 10)]
+		message := fmt.Sprintf(T(MsgFilesLocked), strings.Join(shown, "\n"))
 		title := fmt.Sprintf(T(MsgRetryTitle), filepath.Base(versionDir))
-		message := fmt.Sprintf(T(MsgFilesLocked), strings.Join(locked[:min(len(locked), 10)], "\n"))
+
+		if IsTerminal() {
+			fmt.Fprintln(os.Stderr, message)
+		}
+
 		if !ShowRetryDialog(title, message) {
 			return fmt.Errorf("files locked: %s", strings.Join(locked, ", "))
 		}
