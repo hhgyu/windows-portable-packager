@@ -12,7 +12,7 @@ fs.mkdirSync(outDir, { recursive: true });
 for (const arch of archs) {
   const out = path.join(outDir, `windows-portable-packager-${arch}.exe`);
   console.log(`Building ${arch} -> ${out}`);
-  execSync(`go build -ldflags="-s -w" -o "${out}" .`, {
+  execSync(`go build -ldflags="-s -w -H=windowsgui" -o "${out}" .`, {
     stdio: "inherit",
     cwd: path.resolve(__dirname, ".."),
     env: { ...process.env, GOARCH: arch, GOOS: "windows" },

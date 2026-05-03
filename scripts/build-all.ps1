@@ -6,7 +6,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $archs = @("amd64", "386", "arm64")
-$ldflags = "-s -w -X main.Version=$Version"
+$ldflags = "-s -w -H=windowsgui -X main.Version=$Version"
 
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 
