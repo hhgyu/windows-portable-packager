@@ -51,15 +51,26 @@ Values automatically detected by the hook:
 - **Architecture:** Target architecture (x64 → amd64, ia32 → 386, arm64 → arm64)
 - **EXE Name:** `build.productName + ".exe"`
 
-Optional `portablePackager` config override:
+Optional `portablePackager` config:
 ```json
 {
   "portablePackager": {
     "exeName": "MyApp.exe",
-    "arch": "amd64"
+    "arch": "amd64",
+    "splash": "build/splash.png",
+    "compression": "zstd",
+    "level": 0
   }
 }
 ```
+
+| Field | Description | Default |
+|-------|-------------|---------|
+| `exeName` | Executable filename | `<productName>.exe` |
+| `arch` | Target architecture | `amd64` |
+| `splash` | Splash image path (png/jpg/gif/apng) | — |
+| `compression` | Compression format: `zstd`, `gzip`, `xz` | `zstd` |
+| `level` | Compression level (zstd: 1–19, gzip: 1–9, xz: 1–9, 0=default) | `0` |
 
 ## Usage — manual build
 ### 1. Pack
@@ -86,6 +97,11 @@ set GOARCH=amd64 && go build -ldflags="-s -w" -o dist/MyApp-1.0.0-amd64.exe .
 | `version` | Print version |
 | `help` | Print help |
 
+### Global Options
+| Option | Description |
+|--------|-------------|
+| `-v`, `--verbose` | Enable verbose logging |
+
 ### Pack Options
 | Option | Description |
 |--------|-------------|
@@ -94,21 +110,34 @@ set GOARCH=amd64 && go build -ldflags="-s -w" -o dist/MyApp-1.0.0-amd64.exe .
 | `-v <version>` | Version string (Required) |
 | `-arch <arch>` | Target architecture: amd64, 386, arm64 (Default: amd64) |
 | `-exe <name>` | Executable name (Default: `<app>.exe`) |
+| `-splash <path>` | Splash image path (png/jpg/gif/apng) |
+| `-compression <fmt>` | Compression format: zstd, gzip, xz (Default: zstd) |
+| `-level <n>` | Compression level (zstd: 1–19, gzip: 1–9, xz: 1–9, 0=default) |
 
 ### Run Options
 | Option | Description |
 |--------|-------------|
 | `-package <path>` | Path to `.kbpkg` file (Auto-searches if no embed) |
 | `-exe <name>` | Override executable name |
+| `-splash <path>` | Override splash image path |
+
+## Splash Screen
+A splash image is displayed immediately on launch and stays visible during extraction. It closes automatically when the app starts.
+
+Supported formats: PNG, JPG, GIF (animated), APNG (animated).
+
+Embed via `portablePackager.splash` in your electron-builder `package.json`, or pass `-splash` at runtime.
 
 ## .kbpkg Package Format
-`.kbpkg` is a gzip-compressed tar archive. The first entry must be `_manifest.json`.
+`.kbpkg` is a compressed tar archive. The first entry must be `_manifest.json`. Default compression is **zstd**; gzip and xz packages are auto-detected on unpack.
+
 ```json
 {
   "appName": "MyApp",
   "version": "1.0.0",
   "arch": "amd64",
   "exe": "MyApp.exe",
+  "splash": "_splash.png",
   "timestamp": "2026-01-01T00:00:00Z",
   "files": {
     "MyApp.exe": "sha256hex...",
@@ -135,6 +164,9 @@ set GOARCH=amd64 && go build -ldflags="-s -w" -o dist/MyApp-1.0.0-amd64.exe .
 | amd64  | x64 (64-bit) | x64                     |
 | 386    | x86 (32-bit) | ia32                    |
 | arm64  | ARM64        | arm64                   |
+
+## Localization
+UI messages (dialogs, log output) are automatically displayed in **Korean** or **English** based on the system locale. Korean (`ko-*`) is detected on Windows via `GetUserDefaultLocaleName`; all other locales fall back to English.
 
 ## Requirements
 - Go must be installed for manual builds.

@@ -51,15 +51,26 @@ npx windows-portable-packager init
 - **아키텍처:** 빌드 타겟 아키텍처 (x64 → amd64, ia32 → 386, arm64 → arm64)
 - **exe 이름:** `build.productName + ".exe"`
 
-`portablePackager` 설정 오버라이드:
+`portablePackager` 설정 옵션:
 ```json
 {
   "portablePackager": {
     "exeName": "MyApp.exe",
-    "arch": "amd64"
+    "arch": "amd64",
+    "splash": "build/splash.png",
+    "compression": "zstd",
+    "level": 0
   }
 }
 ```
+
+| 필드 | 설명 | 기본값 |
+|------|------|--------|
+| `exeName` | 실행 파일 이름 | `<productName>.exe` |
+| `arch` | 대상 아키텍처 | `amd64` |
+| `splash` | 스플래시 이미지 경로 (png/jpg/gif/apng) | — |
+| `compression` | 압축 포맷: `zstd`, `gzip`, `xz` | `zstd` |
+| `level` | 압축 레벨 (zstd: 1–19, gzip: 1–9, xz: 1–9, 0=기본값) | `0` |
 
 ## 사용법 — 수동 빌드
 ### 1. Pack
@@ -86,6 +97,11 @@ set GOARCH=amd64 && go build -ldflags="-s -w" -o dist/MyApp-1.0.0-amd64.exe .
 | `version` | 버전 출력 |
 | `help` | 도움말 출력 |
 
+### 전역 옵션
+| 옵션 | 설명 |
+|------|------|
+| `-v`, `--verbose` | 상세 로그 출력 |
+
 ### Pack 옵션
 | 옵션 | 설명 |
 |------|------|
@@ -94,21 +110,34 @@ set GOARCH=amd64 && go build -ldflags="-s -w" -o dist/MyApp-1.0.0-amd64.exe .
 | `-v <version>` | 버전 문자열 (필수) |
 | `-arch <arch>` | 대상 아키텍처: amd64, 386, arm64 (기본: amd64) |
 | `-exe <name>` | 실행 파일 이름 (기본: `<app>.exe`) |
+| `-splash <path>` | 스플래시 이미지 경로 (png/jpg/gif/apng) |
+| `-compression <fmt>` | 압축 포맷: zstd, gzip, xz (기본: zstd) |
+| `-level <n>` | 압축 레벨 (zstd: 1–19, gzip: 1–9, xz: 1–9, 0=기본값) |
 
 ### Run 옵션
 | 옵션 | 설명 |
 |------|------|
 | `-package <path>` | `.kbpkg` 파일 경로 (embed 없을 때 자동 탐색) |
 | `-exe <name>` | 실행 파일 이름 오버라이드 |
+| `-splash <path>` | 스플래시 이미지 경로 오버라이드 |
+
+## 스플래시 화면
+앱 실행 즉시 스플래시 이미지가 표시되며, 압축 해제 중에도 유지됩니다. 앱이 시작되면 자동으로 닫힙니다.
+
+지원 포맷: PNG, JPG, GIF (애니메이션), APNG (애니메이션).
+
+`portablePackager.splash`로 빌드 시 임베드하거나, 실행 시 `-splash` 플래그로 지정할 수 있습니다.
 
 ## .kbpkg 패키지 포맷
-`.kbpkg`는 gzip 압축 tar 아카이브. 첫 엔트리는 반드시 `_manifest.json`.
+`.kbpkg`는 압축된 tar 아카이브입니다. 첫 엔트리는 반드시 `_manifest.json`이어야 합니다. 기본 압축 포맷은 **zstd**이며, gzip/xz 패키지도 압축 해제 시 자동으로 감지됩니다.
+
 ```json
 {
   "appName": "MyApp",
   "version": "1.0.0",
   "arch": "amd64",
   "exe": "MyApp.exe",
+  "splash": "_splash.png",
   "timestamp": "2026-01-01T00:00:00Z",
   "files": {
     "MyApp.exe": "sha256hex...",
@@ -135,6 +164,9 @@ set GOARCH=amd64 && go build -ldflags="-s -w" -o dist/MyApp-1.0.0-amd64.exe .
 | amd64  | x64 (64-bit)    | x64                  |
 | 386    | x86 (32-bit)    | ia32                 |
 | arm64  | ARM64           | arm64                |
+
+## 다국어 지원
+UI 메시지(다이얼로그, 로그 출력)는 시스템 로케일에 따라 **한국어** 또는 **영어**로 자동 표시됩니다. Windows에서는 `GetUserDefaultLocaleName`으로 감지하며, `ko-*` 로케일이면 한국어, 그 외에는 영어로 표시됩니다.
 
 ## 요구 사항
 - 수동 빌드 시 Go 설치가 필요합니다.
