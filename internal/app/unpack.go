@@ -105,6 +105,9 @@ func UnpackEmbedded(versionDir string) (*Manifest, error) {
 
 func unpackFromReader(r io.Reader, versionDir string) (*Manifest, error) {
 	if _, err := os.Stat(versionDir); err == nil {
+		if err := waitForVersionDirUnlocked(versionDir); err != nil {
+			return nil, err
+		}
 		fmt.Printf("Removing previous installation: %s\n", versionDir)
 		if err := os.RemoveAll(versionDir); err != nil {
 			return nil, fmt.Errorf("remove previous: %w", err)
@@ -213,9 +216,20 @@ func unpackFromReader(r io.Reader, versionDir string) (*Manifest, error) {
 	return manifest, nil
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
+func waitForVersionDirUnlocked(versionDir string) error {
+	for {
+		locked, err := detectLockedFiles(versionDir)
+		if err != nil {
+			return fmt.Errorf("check locked files: %w", err)
+		}
+		if len(locked) == 0 {
+			return nil
+		}
+
+		title := fmt.Sprintf(T(MsgRetryTitle), filepath.Base(versionDir))
+		message := fmt.Sprintf(T(MsgFilesLocked), strings.Join(locked[:min(len(locked), 10)], "\n"))
+		if !ShowRetryDialog(title, message) {
+			return fmt.Errorf("files locked: %s", strings.Join(locked, ", "))
+		}
 	}
-	return b
 }
