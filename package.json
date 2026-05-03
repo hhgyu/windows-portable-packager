@@ -1,0 +1,54 @@
+{
+  "name": "windows-portable-packager",
+  "version": "0.0.2",
+  "description": "Go-based portable launcher for Windows Electron apps — hash verification, version management, multi-arch support, and electron-builder integration",
+  "bin": {
+    "windows-portable-packager": "./bin/windows-portable-packager.js"
+  },
+  "main": "./hooks/afterAllArtifactBuild.js",
+  "files": [
+    "bin/",
+    "hooks/",
+    "lib/",
+    "dist/windows-portable-packager-*.exe",
+    "internal/app/*.go",
+    "!internal/app/*_test.go",
+    "embed.go",
+    "main.go",
+    "go.mod"
+  ],
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": ["**/test/**/*.test.js"]
+  },
+  "scripts": {
+    "build:go": "go build -ldflags=\"-s -w\" -o dist/windows-portable-packager.exe .",
+    "build:all": "node scripts/build-all.js",
+    "build": "npm run build:go",
+    "test:go": "go test ./internal/app/ -v -count=1",
+    "test:node": "jest",
+    "test": "npm run test:go && npm run test:node",
+    "prepack": "npm run build:all"
+  },
+  "peerDependencies": {
+    "electron-builder": ">= 22.0.0"
+  },
+  "peerDependenciesMeta": {
+    "electron-builder": {
+      "optional": true
+    }
+  },
+  "keywords": [
+    "electron",
+    "electron-builder",
+    "portable",
+    "launcher",
+    "windows",
+    "hash-verification",
+    "multi-arch"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "jest": "^30.3.0"
+  }
+}
