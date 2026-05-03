@@ -28,7 +28,7 @@ func TestLogNormalLevel(t *testing.T) {
 	defer SetLogLevel(LogLevelNormal)
 
 	out := captureLog(func() {
-		Log("hello %s", "world")
+		Logf("hello %s", "world")
 	})
 	if !strings.Contains(out, "hello world") {
 		t.Errorf("expected 'hello world' in output, got: %q", out)
@@ -42,6 +42,7 @@ func TestLogVerboseSuppressedAtNormal(t *testing.T) {
 	out := captureLog(func() {
 		LogVerbose("secret verbose")
 	})
+
 	if out != "" {
 		t.Errorf("expected no output at normal level, got: %q", out)
 	}
@@ -64,7 +65,7 @@ func TestLogVerboseShownAtVerboseLevel(t *testing.T) {
 
 func TestLogError(t *testing.T) {
 	out := captureLog(func() {
-		LogError("something went wrong: %v", fmt.Errorf("disk full"))
+		LogErrorf("something went wrong: %v", fmt.Errorf("disk full"))
 	})
 	if !strings.Contains(out, "Error:") {
 		t.Errorf("expected 'Error:' prefix, got: %q", out)

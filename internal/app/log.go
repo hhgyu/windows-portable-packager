@@ -18,19 +18,33 @@ func SetLogLevel(level LogLevel) {
 	currentLogLevel = level
 }
 
-func Log(format string, args ...any) {
+func Logf(format string, args ...any) {
 	writeLog(fmt.Sprintf(format, args...))
 }
 
-func LogVerbose(format string, args ...any) {
+func Log(msg string) {
+	writeLog(msg)
+}
+
+func LogVerbosef(format string, args ...any) {
 	if currentLogLevel < LogLevelVerbose {
 		return
 	}
 	writeLog("[verbose] " + fmt.Sprintf(format, args...))
 }
 
-func LogError(format string, args ...any) {
-	msg := fmt.Sprintf(format, args...)
+func LogVerbose(msg string) {
+	if currentLogLevel < LogLevelVerbose {
+		return
+	}
+	writeLog("[verbose] " + msg)
+}
+
+func LogErrorf(format string, args ...any) {
+	writeLog("Error: " + fmt.Sprintf(format, args...))
+}
+
+func LogError(msg string) {
 	writeLog("Error: " + msg)
 }
 

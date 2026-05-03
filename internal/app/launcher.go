@@ -19,7 +19,7 @@ func runFromEmbedded(exeOverride string) error {
 	if err != nil {
 		return fmt.Errorf("read embedded package: %w", err)
 	}
-	LogVerbose("Package: %s %s (%s)", manifest.AppName, manifest.Version, manifest.Arch)
+	LogVerbose(fmt.Sprintf("Package: %s %s (%s)", manifest.AppName, manifest.Version, manifest.Arch))
 
 	config := NewConfig(manifest.AppName, manifest.Version, manifest.Arch)
 
@@ -31,14 +31,14 @@ func runFromEmbedded(exeOverride string) error {
 		}
 		ok, verifyErr := installedManifest.VerifySingle(config.VersionDir, exeName)
 		if verifyErr == nil && ok {
-			LogVerbose("Already installed and verified, launching...")
+			LogVerbose(T(MsgAlreadyInstalled))
 			CleanOldVersions(config, []string{manifest.Version})
 			return launch(filepath.Join(config.VersionDir, exeName))
 		}
 	}
 
-	Log("Installing %s %s...", manifest.AppName, manifest.Version)
-	LogVerbose("Extracting to %s...", config.VersionDir)
+	Log(fmt.Sprintf(T(MsgInstalling), manifest.AppName, manifest.Version))
+	LogVerbose(fmt.Sprintf(T(MsgExtracting), config.VersionDir))
 	extracted, err := UnpackEmbedded(config.VersionDir)
 	if err != nil {
 		return fmt.Errorf("unpack: %w", err)
@@ -56,15 +56,15 @@ func runFromEmbedded(exeOverride string) error {
 func runFromFile(pkgPath, exeOverride string) error {
 	pkg, err := FindPackage(pkgPath)
 	if err != nil {
-	LogVerbose("No package found, looking for installed version...")
-	return launchLatest(exeOverride)
+		LogVerbose(T(MsgNoPackageFound))
+		return launchLatest(exeOverride)
 	}
 
 	manifest, err := ReadPackageManifest(pkg)
 	if err != nil {
 		return fmt.Errorf("read package: %w", err)
 	}
-	LogVerbose("Package: %s %s (%s)", manifest.AppName, manifest.Version, manifest.Arch)
+	LogVerbose(fmt.Sprintf("Package: %s %s (%s)", manifest.AppName, manifest.Version, manifest.Arch))
 
 	config := NewConfig(manifest.AppName, manifest.Version, manifest.Arch)
 
@@ -76,14 +76,14 @@ func runFromFile(pkgPath, exeOverride string) error {
 		}
 		ok, verifyErr := installedManifest.VerifySingle(config.VersionDir, exeName)
 		if verifyErr == nil && ok {
-			LogVerbose("Already installed and verified, launching...")
+			LogVerbose(T(MsgAlreadyInstalled))
 			CleanOldVersions(config, []string{manifest.Version})
 			return launch(filepath.Join(config.VersionDir, exeName))
 		}
 	}
 
-	Log("Installing %s %s...", manifest.AppName, manifest.Version)
-	LogVerbose("Extracting to %s...", config.VersionDir)
+	Log(fmt.Sprintf(T(MsgInstalling), manifest.AppName, manifest.Version))
+	LogVerbose(fmt.Sprintf(T(MsgExtracting), config.VersionDir))
 	extracted, err := Unpack(pkg, config.VersionDir)
 	if err != nil {
 		return fmt.Errorf("unpack: %w", err)
@@ -123,7 +123,7 @@ func launch(exePath string) error {
 		return fmt.Errorf("exe not found: %s", exePath)
 	}
 
-	LogVerbose("Launching %s", filepath.Base(exePath))
+	LogVerbose(fmt.Sprintf(T(MsgLaunching), filepath.Base(exePath)))
 
 	cmd := exec.Command(exePath)
 	cmd.Dir = filepath.Dir(exePath)
