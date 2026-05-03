@@ -8,10 +8,13 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
-func Pack(srcDir, outputPath, appName, version, arch, exeName string) error {
+const SplashName = "_splash"
+
+func Pack(srcDir, outputPath, appName, version, arch, exeName, splashPath string) error {
 	if info, err := os.Stat(srcDir); err != nil {
 		return fmt.Errorf("source directory: %w", err)
 	} else if !info.IsDir() {
@@ -23,7 +26,15 @@ func Pack(srcDir, outputPath, appName, version, arch, exeName string) error {
 		return fmt.Errorf("exe not found: %s: %w", exeName, err)
 	}
 
-	manifest, err := GenerateManifest(srcDir, appName, version, arch, exeName)
+	splashExt := ""
+	if splashPath != "" {
+		if _, err := os.Stat(splashPath); err != nil {
+			return fmt.Errorf("splash not found: %s: %w", splashPath, err)
+		}
+		splashExt = strings.ToLower(filepath.Ext(splashPath))
+	}
+
+	manifest, err := GenerateManifest(srcDir, appName, version, arch, exeName, splashExt)
 	if err != nil {
 		return fmt.Errorf("generate manifest: %w", err)
 	}
@@ -61,6 +72,25 @@ func Pack(srcDir, outputPath, appName, version, arch, exeName string) error {
 	}
 	if _, err := tw.Write(manifestData); err != nil {
 		return fmt.Errorf("write manifest: %w", err)
+	}
+
+	if splashPath != "" && splashExt != "" {
+		splashData, err := os.ReadFile(splashPath)
+		if err != nil {
+			return fmt.Errorf("read splash: %w", err)
+		}
+		splashEntry := SplashName + splashExt
+		if err := tw.WriteHeader(&tar.Header{
+			Name:    splashEntry,
+			Size:    int64(len(splashData)),
+			Mode:    0644,
+			ModTime: time.Now(),
+		}); err != nil {
+			return fmt.Errorf("write splash header: %w", err)
+		}
+		if _, err := tw.Write(splashData); err != nil {
+			return fmt.Errorf("write splash: %w", err)
+		}
 	}
 
 	err = filepath.Walk(srcDir, func(path string, info os.FileInfo, walkErr error) error {

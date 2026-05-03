@@ -53,7 +53,7 @@ func TestGenerateManifest(t *testing.T) {
 	writeTestFile(t, dir, "resources/app.asar", "asar content")
 	writeTestFile(t, dir, "locales/en.pak", "locale data")
 
-	manifest, err := GenerateManifest(dir, "TestApp", "1.0.0", "amd64", "app.exe")
+	manifest, err := GenerateManifest(dir, "TestApp", "1.0.0", "amd64", "app.exe", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +134,7 @@ func TestManifestVerify(t *testing.T) {
 	writeTestFile(t, dir, "a.txt", "aaa")
 	writeTestFile(t, dir, "b.txt", "bbb")
 
-	manifest, err := GenerateManifest(dir, "TestApp", "1.0.0", "amd64", "a.txt")
+	manifest, err := GenerateManifest(dir, "TestApp", "1.0.0", "amd64", "a.txt", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +152,7 @@ func TestManifestVerifyDetectsTamper(t *testing.T) {
 	dir := t.TempDir()
 	writeTestFile(t, dir, "a.txt", "original")
 
-	manifest, err := GenerateManifest(dir, "TestApp", "1.0.0", "amd64", "a.txt")
+	manifest, err := GenerateManifest(dir, "TestApp", "1.0.0", "amd64", "a.txt", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +175,7 @@ func TestManifestVerifyMissingFile(t *testing.T) {
 	dir := t.TempDir()
 	writeTestFile(t, dir, "a.txt", "aaa")
 
-	manifest, err := GenerateManifest(dir, "TestApp", "1.0.0", "amd64", "a.txt")
+	manifest, err := GenerateManifest(dir, "TestApp", "1.0.0", "amd64", "a.txt", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +193,7 @@ func TestManifestVerifySingle(t *testing.T) {
 	writeTestFile(t, dir, "good.txt", "good")
 	writeTestFile(t, dir, "bad.txt", "original")
 
-	manifest, err := GenerateManifest(dir, "TestApp", "1.0.0", "amd64", "good.txt")
+	manifest, err := GenerateManifest(dir, "TestApp", "1.0.0", "amd64", "good.txt", "")
 	if err != nil {
 		t.Fatal(err)
 	}

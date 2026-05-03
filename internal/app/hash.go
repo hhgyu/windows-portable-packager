@@ -16,6 +16,7 @@ type Manifest struct {
 	Version   string            `json:"version"`
 	Arch      string            `json:"arch"`
 	Exe       string            `json:"exe"`
+	Splash    string            `json:"splash,omitempty"`
 	Timestamp string            `json:"timestamp"`
 	Files     map[string]string `json:"files"`
 }
@@ -34,12 +35,17 @@ func ComputeFileHash(path string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-func GenerateManifest(rootDir, appName, version, arch, exeName string) (*Manifest, error) {
+func GenerateManifest(rootDir, appName, version, arch, exeName, splashExt string) (*Manifest, error) {
+	splashField := ""
+	if splashExt != "" {
+		splashField = SplashName + splashExt
+	}
 	manifest := &Manifest{
 		AppName:   appName,
 		Version:   version,
 		Arch:      arch,
 		Exe:       exeName,
+		Splash:    splashField,
 		Files:     make(map[string]string),
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	}

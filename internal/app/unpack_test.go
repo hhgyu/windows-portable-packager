@@ -11,7 +11,7 @@ func TestUnpackBasic(t *testing.T) {
 	createMockAppDir(t, srcDir)
 
 	outputPath := filepath.Join(t.TempDir(), "test.kbpkg")
-	if err := Pack(srcDir, outputPath, "KeyBridge", "3.0.0", "amd64", "KeyBridge.exe"); err != nil {
+	if err := Pack(srcDir, outputPath, "KeyBridge", "3.0.0", "amd64", "KeyBridge.exe", ""); err != nil {
 		t.Fatal(err)
 	}
 
@@ -46,7 +46,7 @@ func TestUnpackAndVerify(t *testing.T) {
 	createMockAppDir(t, srcDir)
 
 	outputPath := filepath.Join(t.TempDir(), "test.kbpkg")
-	if err := Pack(srcDir, outputPath, "KeyBridge", "1.0.0", "amd64", "KeyBridge.exe"); err != nil {
+	if err := Pack(srcDir, outputPath, "KeyBridge", "1.0.0", "amd64", "KeyBridge.exe", ""); err != nil {
 		t.Fatal(err)
 	}
 
@@ -70,7 +70,7 @@ func TestUnpackRemovesPreviousInstall(t *testing.T) {
 	createMockAppDir(t, srcDir)
 
 	outputPath := filepath.Join(t.TempDir(), "test.kbpkg")
-	if err := Pack(srcDir, outputPath, "KeyBridge", "1.0.0", "amd64", "KeyBridge.exe"); err != nil {
+	if err := Pack(srcDir, outputPath, "KeyBridge", "1.0.0", "amd64", "KeyBridge.exe", ""); err != nil {
 		t.Fatal(err)
 	}
 
@@ -96,7 +96,7 @@ func TestUnpackRejectsTamperedPackage(t *testing.T) {
 	createMockAppDir(t, srcDir)
 
 	outputPath := filepath.Join(t.TempDir(), "test.kbpkg")
-	if err := Pack(srcDir, outputPath, "KeyBridge", "1.0.0", "amd64", "KeyBridge.exe"); err != nil {
+	if err := Pack(srcDir, outputPath, "KeyBridge", "1.0.0", "amd64", "KeyBridge.exe", ""); err != nil {
 		t.Fatal(err)
 	}
 

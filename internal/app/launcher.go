@@ -7,16 +7,28 @@ import (
 	"path/filepath"
 )
 
-func Run(pkgPath, exeOverride string) error {
-	if HasEmbeddedPackage() {
-		return runFromEmbedded(exeOverride)
+func Run(pkgPath, exeOverride, splashOverride string) error {
+	var splash *SplashWindow
+	if splashOverride != "" {
+		splash, _ = ShowSplash(splashOverride)
+	} else if HasEmbeddedSplash() {
+		data, ext := GetEmbeddedSplash()
+		splash, _ = ShowSplashFromData(data, ext)
 	}
-	return runFromFile(pkgPath, exeOverride)
+
+	var err error
+	if HasEmbeddedPackage() {
+		err = runFromEmbedded(exeOverride, splash)
+	} else {
+		err = runFromFile(pkgPath, exeOverride, splash)
+	}
+	return err
 }
 
-func runFromEmbedded(exeOverride string) error {
+func runFromEmbedded(exeOverride string, splash *SplashWindow) error {
 	manifest, err := ReadEmbeddedManifest()
 	if err != nil {
+		splash.Close()
 		return fmt.Errorf("read embedded package: %w", err)
 	}
 	LogVerbose(fmt.Sprintf("Package: %s %s (%s)", manifest.AppName, manifest.Version, manifest.Arch))
@@ -33,7 +45,9 @@ func runFromEmbedded(exeOverride string) error {
 		if verifyErr == nil && ok {
 			LogVerbose(T(MsgAlreadyInstalled))
 			CleanOldVersions(config, []string{manifest.Version})
-			return launch(filepath.Join(config.VersionDir, exeName))
+			err := launch(filepath.Join(config.VersionDir, exeName))
+			splash.Close()
+			return err
 		}
 	}
 
@@ -41,6 +55,7 @@ func runFromEmbedded(exeOverride string) error {
 	LogVerbose(fmt.Sprintf(T(MsgExtracting), config.VersionDir))
 	extracted, err := UnpackEmbedded(config.VersionDir)
 	if err != nil {
+		splash.Close()
 		return fmt.Errorf("unpack: %w", err)
 	}
 
@@ -50,18 +65,21 @@ func runFromEmbedded(exeOverride string) error {
 	if exeOverride != "" {
 		exePath = filepath.Join(config.VersionDir, exeOverride)
 	}
-	return launch(exePath)
+	err = launch(exePath)
+	splash.Close()
+	return err
 }
 
-func runFromFile(pkgPath, exeOverride string) error {
+func runFromFile(pkgPath, exeOverride string, splash *SplashWindow) error {
 	pkg, err := FindPackage(pkgPath)
 	if err != nil {
 		LogVerbose(T(MsgNoPackageFound))
-		return launchLatest(exeOverride)
+		return launchLatest(exeOverride, splash)
 	}
 
 	manifest, err := ReadPackageManifest(pkg)
 	if err != nil {
+		splash.Close()
 		return fmt.Errorf("read package: %w", err)
 	}
 	LogVerbose(fmt.Sprintf("Package: %s %s (%s)", manifest.AppName, manifest.Version, manifest.Arch))
@@ -78,7 +96,9 @@ func runFromFile(pkgPath, exeOverride string) error {
 		if verifyErr == nil && ok {
 			LogVerbose(T(MsgAlreadyInstalled))
 			CleanOldVersions(config, []string{manifest.Version})
-			return launch(filepath.Join(config.VersionDir, exeName))
+			err := launch(filepath.Join(config.VersionDir, exeName))
+			splash.Close()
+			return err
 		}
 	}
 
@@ -86,6 +106,7 @@ func runFromFile(pkgPath, exeOverride string) error {
 	LogVerbose(fmt.Sprintf(T(MsgExtracting), config.VersionDir))
 	extracted, err := Unpack(pkg, config.VersionDir)
 	if err != nil {
+		splash.Close()
 		return fmt.Errorf("unpack: %w", err)
 	}
 
@@ -95,19 +116,23 @@ func runFromFile(pkgPath, exeOverride string) error {
 	if exeOverride != "" {
 		exePath = filepath.Join(config.VersionDir, exeOverride)
 	}
-	return launch(exePath)
+	err = launch(exePath)
+	splash.Close()
+	return err
 }
 
-func launchLatest(exeOverride string) error {
+func launchLatest(exeOverride string, splash *SplashWindow) error {
 	config := NewConfig("", "", DetectArch())
 	latest, err := GetLatestVersion(config)
 	if err != nil {
+		splash.Close()
 		return fmt.Errorf("no installed version found — place a %s file next to this executable", PackageExt)
 	}
 
 	config.Version = latest
 	manifest, err := LoadManifest(config.ManifestPath())
 	if err != nil {
+		splash.Close()
 		return fmt.Errorf("load manifest for %s: %w", latest, err)
 	}
 
@@ -115,7 +140,9 @@ func launchLatest(exeOverride string) error {
 	if exeOverride != "" {
 		exePath = filepath.Join(config.VersionDir, exeOverride)
 	}
-	return launch(exePath)
+	err = launch(exePath)
+	splash.Close()
+	return err
 }
 
 func launch(exePath string) error {

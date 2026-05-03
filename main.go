@@ -60,6 +60,7 @@ func packCmd(args []string) {
 	version := fs.String("v", "", "Version string (required)")
 	arch := fs.String("arch", "amd64", "Target architecture: amd64, 386, arm64")
 	exeName := fs.String("exe", "", "Main executable name (default: <app>.exe)")
+	splashPath := fs.String("splash", "", "Splash image path (png/jpg/gif/apng)")
 	fs.Parse(args)
 
 	if fs.NArg() < 1 || *version == "" || *appName == "" {
@@ -84,7 +85,7 @@ func packCmd(args []string) {
 		*output = fmt.Sprintf("%s-%s-%s%s", *appName, *version, *arch, app.PackageExt)
 	}
 
-	if err := app.Pack(srcDir, *output, *appName, *version, *arch, exe); err != nil {
+	if err := app.Pack(srcDir, *output, *appName, *version, *arch, exe, *splashPath); err != nil {
 		fmt.Fprintf(os.Stderr, "Pack error: %v\n", err)
 		os.Exit(1)
 	}
@@ -94,9 +95,10 @@ func runCmd(args []string) {
 	fs := flag.NewFlagSet("run", flag.ExitOnError)
 	pkgPath := fs.String("package", "", "Path to .kbpkg file (auto-detected if empty)")
 	exeOverride := fs.String("exe", "", "Override main executable name")
+	splashPath := fs.String("splash", "", "Path to splash image (png/jpg/gif/apng)")
 	fs.Parse(args)
 
-	if err := app.Run(*pkgPath, *exeOverride); err != nil {
+	if err := app.Run(*pkgPath, *exeOverride, *splashPath); err != nil {
 		fmt.Fprintf(os.Stderr, "Run error: %v\n", err)
 		os.Exit(1)
 	}

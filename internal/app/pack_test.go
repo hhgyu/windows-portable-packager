@@ -20,7 +20,7 @@ func TestPackAndReadManifest(t *testing.T) {
 
 	outputPath := filepath.Join(t.TempDir(), "test.kbpkg")
 
-	if err := Pack(srcDir, outputPath, "KeyBridge", "1.2.3", "amd64", "KeyBridge.exe"); err != nil {
+	if err := Pack(srcDir, outputPath, "KeyBridge", "1.2.3", "amd64", "KeyBridge.exe", ""); err != nil {
 		t.Fatal(err)
 	}
 
@@ -50,7 +50,7 @@ func TestPackMissingExe(t *testing.T) {
 
 	outputPath := filepath.Join(t.TempDir(), "test.kbpkg")
 
-	err := Pack(srcDir, outputPath, "TestApp", "1.0.0", "amd64", "NonExistent.exe")
+	err := Pack(srcDir, outputPath, "TestApp", "1.0.0", "amd64", "NonExistent.exe", "")
 	if err == nil {
 		t.Fatal("expected error for missing exe")
 	}
@@ -58,7 +58,7 @@ func TestPackMissingExe(t *testing.T) {
 
 func TestPackNonexistentSource(t *testing.T) {
 	outputPath := filepath.Join(t.TempDir(), "test.kbpkg")
-	err := Pack("/nonexistent/path", outputPath, "TestApp", "1.0.0", "amd64", "app.exe")
+	err := Pack("/nonexistent/path", outputPath, "TestApp", "1.0.0", "amd64", "app.exe", "")
 	if err == nil {
 		t.Fatal("expected error for nonexistent source")
 	}
@@ -71,7 +71,7 @@ func TestPackCreatesOutputDir(t *testing.T) {
 	tmpDir := t.TempDir()
 	outputPath := filepath.Join(tmpDir, "nested", "deep", "output.kbpkg")
 
-	if err := Pack(srcDir, outputPath, "TestApp", "1.0.0", "amd64", "app.exe"); err != nil {
+	if err := Pack(srcDir, outputPath, "TestApp", "1.0.0", "amd64", "app.exe", ""); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(outputPath); err != nil {
