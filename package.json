@@ -3,7 +3,7 @@
   "version": "0.0.3",
   "description": "Go-based portable launcher for Windows Electron apps — hash verification, version management, multi-arch support, and electron-builder integration",
   "bin": {
-    "windows-portable-packager": "./bin/windows-portable-packager.js"
+    "windows-portable-packager": "bin/windows-portable-packager.js"
   },
   "main": "./hooks/afterAllArtifactBuild.js",
   "files": [
@@ -19,7 +19,9 @@
   ],
   "jest": {
     "testEnvironment": "node",
-    "testMatch": ["**/test/**/*.test.js"]
+    "testMatch": [
+      "**/test/**/*.test.js"
+    ]
   },
   "scripts": {
     "build:go": "go build -ldflags=\"-s -w\" -o dist/windows-portable-packager.exe .",
