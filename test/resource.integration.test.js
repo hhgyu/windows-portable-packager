@@ -146,7 +146,7 @@ describe("resource.js vs goversioninfo integration", () => {
     expect(ourHdr.numberOfSymbols).toBe(theirHdr.numberOfSymbols);
   });
 
-  test("생성된 .syso로 go build 성공", () => {
+  test("생성된 .syso로 go build 성공 (최소 프로젝트)", () => {
     const pkg = { name: "TestApp", version: "1.2.3", description: "Test" };
     const sysoPath = path.join(tmpDir, "resource.syso");
     generateSyso(tmpDir, pkg, "amd64", sysoPath, null);
@@ -165,6 +165,35 @@ describe("resource.js vs goversioninfo integration", () => {
     });
 
     expect(fs.existsSync(exePath)).toBe(true);
+  });
+
+  test("실제 패키지 디렉토리에서 .syso 포함 go build 성공", () => {
+    const pkg = { name: "TestApp", version: "1.2.3", description: "Test" };
+    const sysoPath = path.join(tmpDir, "resource.syso");
+    generateSyso(tmpDir, pkg, "amd64", sysoPath, null);
+
+    const packagerDir = path.resolve(__dirname, "..");
+    const sysoDest = path.join(packagerDir, "resource.syso");
+    fs.copyFileSync(sysoPath, sysoDest);
+
+    try {
+      const exePath = path.join(tmpDir, "realbuild.exe");
+      execSync(`go build -ldflags="-s -w" -o "${exePath}" .`, {
+        cwd: packagerDir,
+        env: { ...process.env, GOARCH: "amd64", GOOS: "windows" },
+        stdio: "pipe",
+      });
+      expect(fs.existsSync(exePath)).toBe(true);
+    } finally {
+      if (fs.existsSync(sysoDest)) fs.unlinkSync(sysoDest);
+    }
+  });
+
+  test("package.json files에 go.sum 포함됨", () => {
+    const packagerDir = path.resolve(__dirname, "..");
+    const pkgJson = JSON.parse(fs.readFileSync(path.join(packagerDir, "package.json"), "utf8"));
+    expect(pkgJson.files).toContain("go.mod");
+    expect(pkgJson.files).toContain("go.sum");
   });
 
   test("relocation 수가 goversioninfo와 동일", () => {
