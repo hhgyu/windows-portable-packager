@@ -1,6 +1,6 @@
 {
   "name": "windows-portable-packager",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "description": "Go-based portable launcher for Windows Electron apps — hash verification, version management, multi-arch support, and electron-builder integration",
   "bin": {
     "windows-portable-packager": "bin/windows-portable-packager.js"
