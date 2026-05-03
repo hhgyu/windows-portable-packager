@@ -1,6 +1,6 @@
 {
   "name": "windows-portable-packager",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Go-based portable launcher for Windows Electron apps — hash verification, version management, multi-arch support, and electron-builder integration",
   "bin": {
     "windows-portable-packager": "bin/windows-portable-packager.js"
@@ -50,6 +50,10 @@
     "hash-verification",
     "multi-arch"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hhgyu/windows-portable-packager.git"
+  },
   "license": "MIT",
   "devDependencies": {
     "jest": "^30.3.0"
