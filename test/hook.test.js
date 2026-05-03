@@ -18,7 +18,7 @@ function makeUnpacked(outDir, exeName = "MyApp.exe") {
 
 function makePackagerDir(tmpDir, arch = "amd64") {
   const distDir = path.join(tmpDir, "packager", "dist");
-  const embedDir = path.join(tmpDir, "packager", "internal", "embed");
+  const embedDir = path.join(tmpDir, "packager", "embedded");
   fs.mkdirSync(distDir, { recursive: true });
   fs.mkdirSync(embedDir, { recursive: true });
   fs.writeFileSync(path.join(distDir, `windows-portable-packager-${arch}.exe`), "fake-bin");
@@ -137,7 +137,7 @@ describe("runHook", () => {
     makeUnpacked(outDir, "MyApp.exe");
 
     const emptyPackagerDir = path.join(tmpDir, "empty-packager");
-    const embedDir = path.join(emptyPackagerDir, "internal", "embed");
+    const embedDir = path.join(emptyPackagerDir, "embedded");
     fs.mkdirSync(path.join(emptyPackagerDir, "dist"), { recursive: true });
     fs.mkdirSync(embedDir, { recursive: true });
     fs.writeFileSync(path.join(embedDir, "app.kbpkg"), "PLACEHOLDER\n");
@@ -183,7 +183,7 @@ describe("runHook", () => {
     const outDir = path.join(tmpDir, "out");
     makeUnpacked(outDir, "MyApp.exe");
     const packagerDir = makePackagerDir(tmpDir);
-    const embedPath = path.join(packagerDir, "internal", "embed", "app.kbpkg");
+    const embedPath = path.join(packagerDir, "embedded", "app.kbpkg");
 
     const result = await runHook({ outDir }, {
       pkgJsonPath: makePkgJson(tmpDir, { name: "my-app", version: "1.0.0", build: { productName: "MyApp" } }),
@@ -201,7 +201,7 @@ describe("runHook", () => {
     const outDir = path.join(tmpDir, "out");
     makeUnpacked(outDir, "MyApp.exe");
     const packagerDir = makePackagerDir(tmpDir);
-    const embedPath = path.join(packagerDir, "internal", "embed", "app.kbpkg");
+    const embedPath = path.join(packagerDir, "embedded", "app.kbpkg");
 
     await runHook({ outDir }, {
       pkgJsonPath: makePkgJson(tmpDir, { name: "my-app", version: "1.0.0", build: { productName: "MyApp" } }),
