@@ -10,15 +10,14 @@ import (
 )
 
 var (
-	kernel32                  = windows.NewLazySystemDLL("kernel32.dll")
-	user32                    = windows.NewLazySystemDLL("user32.dll")
-	procAttachConsole         = kernel32.NewProc("AttachConsole")
-	procGetConsoleProcessList = kernel32.NewProc("GetConsoleProcessList")
-	procMessageBoxW           = user32.NewProc("MessageBoxW")
+	kernel32          = windows.NewLazySystemDLL("kernel32.dll")
+	user32            = windows.NewLazySystemDLL("user32.dll")
+	procAttachConsole = kernel32.NewProc("AttachConsole")
+	procMessageBoxW   = user32.NewProc("MessageBoxW")
 )
 
 const (
-	attachParentProcess = ^uintptr(0) // (DWORD)-1
+	attachParentProcess = ^uintptr(0)
 	mbOk                = 0x00000000
 	mbOkCancel          = 0x00000001
 	mbRetryCancel       = 0x00000005
@@ -34,30 +33,39 @@ var isTerminal bool
 
 func init() {
 	ret, _, _ := procAttachConsole.Call(attachParentProcess)
-	if ret != 0 {
-		isTerminal = true
+	if ret == 0 {
 		return
 	}
+	isTerminal = true
+	reattachStdHandles()
+}
 
-	if !isStdoutTerminal() {
-		isTerminal = false
-		return
+func reattachStdHandles() {
+	if h, err := openConsoleFile("CONOUT$", windows.GENERIC_WRITE); err == nil {
+		os.Stdout = os.NewFile(uintptr(h), "stdout")
 	}
-
-	isTerminal = consoleProcessCount() > 1
+	if h, err := openConsoleFile("CONOUT$", windows.GENERIC_WRITE); err == nil {
+		os.Stderr = os.NewFile(uintptr(h), "stderr")
+	}
+	if h, err := openConsoleFile("CONIN$", windows.GENERIC_READ); err == nil {
+		os.Stdin = os.NewFile(uintptr(h), "stdin")
+	}
 }
 
-func isStdoutTerminal() bool {
-	var mode uint32
-	handle := windows.Handle(os.Stdout.Fd())
-	err := windows.GetConsoleMode(handle, &mode)
-	return err == nil
-}
-
-func consoleProcessCount() uint32 {
-	var list [4]uint32
-	ret, _, _ := procGetConsoleProcessList.Call(uintptr(unsafe.Pointer(&list[0])), uintptr(len(list)))
-	return uint32(ret)
+func openConsoleFile(name string, access uint32) (windows.Handle, error) {
+	p, err := windows.UTF16PtrFromString(name)
+	if err != nil {
+		return 0, err
+	}
+	return windows.CreateFile(
+		p,
+		access,
+		windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE,
+		nil,
+		windows.OPEN_EXISTING,
+		0,
+		0,
+	)
 }
 
 func IsTerminal() bool {
