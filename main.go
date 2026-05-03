@@ -32,9 +32,16 @@ func main() {
 	case "help", "--help", "-h":
 		printHelp()
 	default:
-		fmt.Fprintf(os.Stderr, "Unknown command: %s\n\n", args[0])
+		showError(fmt.Sprintf("Unknown command: %s", args[0]))
 		printHelp()
 		os.Exit(1)
+	}
+}
+
+func showError(msg string) {
+	fmt.Fprintln(os.Stderr, msg)
+	if !app.IsTerminal() {
+		app.ShowErrorDialog("Error", msg)
 	}
 }
 
@@ -103,7 +110,7 @@ func packCmd(args []string) {
 	}
 
 	if err := app.Pack(srcDir, *output, *appName, *version, *arch, exe, *splashPath, opts); err != nil {
-		fmt.Fprintf(os.Stderr, "Pack error: %v\n", err)
+		showError(fmt.Sprintf("Pack error: %v", err))
 		os.Exit(1)
 	}
 }
@@ -116,7 +123,7 @@ func runCmd(args []string) {
 	fs.Parse(args)
 
 	if err := app.Run(*pkgPath, *exeOverride, *splashPath); err != nil {
-		fmt.Fprintf(os.Stderr, "Run error: %v\n", err)
+		showError(fmt.Sprintf("Run error: %v", err))
 		os.Exit(1)
 	}
 }
@@ -128,25 +135,25 @@ func verifyCmd(args []string) {
 
 	pkgManifest, err := resolvePackageManifest(*version)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		showError(fmt.Sprintf("Error: %v", err))
 		os.Exit(1)
 	}
 
 	config := app.NewConfig(pkgManifest.AppName, pkgManifest.Version, "")
 	installed, err := app.LoadManifest(config.ManifestPath())
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: no installation found for version %s\n", pkgManifest.Version)
+		showError(fmt.Sprintf("Error: no installation found for version %s", pkgManifest.Version))
 		os.Exit(1)
 	}
 
 	mismatches, err := installed.Verify(config.VersionDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Verification error: %v\n", err)
+		showError(fmt.Sprintf("Verification error: %v", err))
 		os.Exit(1)
 	}
 
 	if len(mismatches) > 0 {
-		fmt.Fprintf(os.Stderr, "Verification FAILED: %d file(s) mismatched\n", len(mismatches))
+		showError(fmt.Sprintf("Verification FAILED: %d file(s) mismatched", len(mismatches)))
 		for _, f := range mismatches {
 			fmt.Fprintf(os.Stderr, "  - %s\n", f)
 		}
@@ -186,7 +193,7 @@ func cleanCmd(args []string) {
 	config := app.NewConfig(appName, "", "")
 	removed, err := app.CleanOldVersions(config, keepVersions)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		showError(fmt.Sprintf("Error: %v", err))
 		os.Exit(1)
 	}
 
