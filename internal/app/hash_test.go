@@ -180,6 +180,38 @@ func TestManifestVerifyDetectsTamper(t *testing.T) {
 	}
 }
 
+func TestVerifyEntryChecksSizeAndHash(t *testing.T) {
+	dir := t.TempDir()
+	writeTestFile(t, dir, "a.txt", "same")
+
+	hash, err := ComputeFileHash(filepath.Join(dir, "a.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ok, err := verifyEntry(dir, "a.txt", FileEntry{Hash: hash, Size: 4})
+	if err != nil || !ok {
+		t.Fatalf("expected valid entry: ok=%v err=%v", ok, err)
+	}
+
+	ok, err = verifyEntry(dir, "a.txt", FileEntry{Hash: hash, Size: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok {
+		t.Fatal("size mismatch should not verify")
+	}
+
+	writeTestFile(t, dir, "a.txt", "diff")
+	ok, err = verifyEntry(dir, "a.txt", FileEntry{Hash: hash, Size: 4})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok {
+		t.Fatal("same-size hash mismatch should not verify")
+	}
+}
+
 func TestManifestVerifyMissingFile(t *testing.T) {
 	dir := t.TempDir()
 	writeTestFile(t, dir, "a.txt", "aaa")

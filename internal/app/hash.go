@@ -108,12 +108,11 @@ func (m *Manifest) Verify(rootDir string) ([]string, error) {
 	var mismatches []string
 
 	for rel, entry := range m.Files {
-		fullPath := filepath.Join(rootDir, filepath.FromSlash(rel))
-		actualHash, err := ComputeFileHash(fullPath)
+		ok, err := verifyEntry(rootDir, rel, entry)
 		if err != nil {
 			return nil, fmt.Errorf("verify %s: %w", rel, err)
 		}
-		if actualHash != entry.Hash {
+		if !ok {
 			mismatches = append(mismatches, rel)
 		}
 	}
@@ -126,8 +125,19 @@ func (m *Manifest) VerifySingle(rootDir, relPath string) (bool, error) {
 	if !ok {
 		return false, fmt.Errorf("file not in manifest: %s", relPath)
 	}
+	return verifyEntry(rootDir, relPath, entry)
+}
 
+func verifyEntry(rootDir, relPath string, entry FileEntry) (bool, error) {
 	fullPath := filepath.Join(rootDir, filepath.FromSlash(relPath))
+	info, err := os.Stat(fullPath)
+	if err != nil {
+		return false, err
+	}
+	if info.Size() != entry.Size {
+		return false, nil
+	}
+
 	actualHash, err := ComputeFileHash(fullPath)
 	if err != nil {
 		return false, err
