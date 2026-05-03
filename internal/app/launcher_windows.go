@@ -8,7 +8,9 @@ import (
 )
 
 func setSysProcAttr(cmd *exec.Cmd) {
+	const detachedProcess = 0x00000008
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP,
+		CreationFlags: detachedProcess | syscall.CREATE_NEW_PROCESS_GROUP,
+		HideWindow:    true,
 	}
 }

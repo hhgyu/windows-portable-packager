@@ -154,10 +154,14 @@ func launch(exePath string) error {
 
 	cmd := exec.Command(exePath)
 	cmd.Dir = filepath.Dir(exePath)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdin = nil
+	cmd.Stdout = nil
+	cmd.Stderr = nil
 
 	setSysProcAttr(cmd)
 
-	return cmd.Start()
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	return cmd.Process.Release()
 }
