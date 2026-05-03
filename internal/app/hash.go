@@ -12,13 +12,18 @@ import (
 )
 
 type Manifest struct {
-	AppName   string            `json:"appName"`
-	Version   string            `json:"version"`
-	Arch      string            `json:"arch"`
-	Exe       string            `json:"exe"`
-	Splash    string            `json:"splash,omitempty"`
-	Timestamp string            `json:"timestamp"`
-	Files     map[string]string `json:"files"`
+	AppName   string               `json:"appName"`
+	Version   string               `json:"version"`
+	Arch      string               `json:"arch"`
+	Exe       string               `json:"exe"`
+	Splash    string               `json:"splash,omitempty"`
+	Timestamp string               `json:"timestamp"`
+	Files     map[string]FileEntry `json:"files"`
+}
+
+type FileEntry struct {
+	Hash string `json:"hash"`
+	Size int64  `json:"size"`
 }
 
 func ComputeFileHash(path string) (string, error) {
@@ -46,7 +51,7 @@ func GenerateManifest(rootDir, appName, version, arch, exeName, splashExt string
 		Arch:      arch,
 		Exe:       exeName,
 		Splash:    splashField,
-		Files:     make(map[string]string),
+		Files:     make(map[string]FileEntry),
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	}
 
@@ -72,7 +77,7 @@ func GenerateManifest(rootDir, appName, version, arch, exeName, splashExt string
 		if err != nil {
 			return fmt.Errorf("hash %s: %w", rel, err)
 		}
-		manifest.Files[rel] = hash
+		manifest.Files[rel] = FileEntry{Hash: hash, Size: info.Size()}
 		return nil
 	})
 
@@ -102,13 +107,13 @@ func LoadManifest(path string) (*Manifest, error) {
 func (m *Manifest) Verify(rootDir string) ([]string, error) {
 	var mismatches []string
 
-	for rel, expectedHash := range m.Files {
+	for rel, entry := range m.Files {
 		fullPath := filepath.Join(rootDir, filepath.FromSlash(rel))
 		actualHash, err := ComputeFileHash(fullPath)
 		if err != nil {
 			return nil, fmt.Errorf("verify %s: %w", rel, err)
 		}
-		if actualHash != expectedHash {
+		if actualHash != entry.Hash {
 			mismatches = append(mismatches, rel)
 		}
 	}
@@ -117,7 +122,7 @@ func (m *Manifest) Verify(rootDir string) ([]string, error) {
 }
 
 func (m *Manifest) VerifySingle(rootDir, relPath string) (bool, error) {
-	expectedHash, ok := m.Files[filepath.ToSlash(relPath)]
+	entry, ok := m.Files[filepath.ToSlash(relPath)]
 	if !ok {
 		return false, fmt.Errorf("file not in manifest: %s", relPath)
 	}
@@ -127,5 +132,5 @@ func (m *Manifest) VerifySingle(rootDir, relPath string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return actualHash == expectedHash, nil
+	return actualHash == entry.Hash, nil
 }

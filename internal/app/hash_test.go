@@ -72,8 +72,17 @@ func TestGenerateManifest(t *testing.T) {
 	}
 
 	for _, name := range []string{"app.exe", "resources/app.asar", "locales/en.pak"} {
-		if _, ok := manifest.Files[name]; !ok {
+		entry, ok := manifest.Files[name]
+		if !ok {
 			t.Errorf("missing file in manifest: %s", name)
+			continue
+		}
+		info, err := os.Stat(filepath.Join(dir, filepath.FromSlash(name)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if entry.Size != info.Size() {
+			t.Errorf("file %q size = %d, want %d", name, entry.Size, info.Size())
 		}
 	}
 
@@ -91,9 +100,9 @@ func TestManifestSaveLoad(t *testing.T) {
 		Arch:      "arm64",
 		Exe:       "MyApp.exe",
 		Timestamp: "2026-01-01T00:00:00Z",
-		Files: map[string]string{
-			"MyApp.exe":       "abc123",
-			"resources/app.asar": "def456",
+		Files: map[string]FileEntry{
+			"MyApp.exe":          {Hash: "abc123", Size: 12},
+			"resources/app.asar": {Hash: "def456", Size: 34},
 		},
 	}
 
@@ -124,7 +133,7 @@ func TestManifestSaveLoad(t *testing.T) {
 	}
 	for k, v := range original.Files {
 		if loaded.Files[k] != v {
-			t.Errorf("file %q hash mismatch: %q vs %q", k, loaded.Files[k], v)
+			t.Errorf("file %q entry mismatch: %#v vs %#v", k, loaded.Files[k], v)
 		}
 	}
 }

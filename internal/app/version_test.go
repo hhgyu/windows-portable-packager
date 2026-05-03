@@ -26,7 +26,7 @@ func TestListInstalledVersions(t *testing.T) {
 	for _, v := range []string{"1.0.0", "2.0.0", "1.5.0"} {
 		vDir := filepath.Join(config.AppDir, v)
 		os.MkdirAll(vDir, 0755)
-		m := &Manifest{Version: v, Exe: "app.exe", Files: map[string]string{}}
+		m := &Manifest{Version: v, Exe: "app.exe", Files: map[string]FileEntry{}}
 		m.Save(filepath.Join(vDir, ManifestName))
 	}
 
@@ -52,7 +52,7 @@ func TestListInstalledVersionsSkipsDirs(t *testing.T) {
 
 	vDir := filepath.Join(config.AppDir, "1.0.0")
 	os.MkdirAll(vDir, 0755)
-	m := &Manifest{Version: "1.0.0", Exe: "app.exe", Files: map[string]string{}}
+	m := &Manifest{Version: "1.0.0", Exe: "app.exe", Files: map[string]FileEntry{}}
 	m.Save(filepath.Join(vDir, ManifestName))
 
 	os.MkdirAll(filepath.Join(config.AppDir, "incomplete"), 0755)
@@ -74,7 +74,7 @@ func TestCleanOldVersions(t *testing.T) {
 	for _, v := range []string{"1.0.0", "2.0.0", "3.0.0"} {
 		vDir := filepath.Join(config.AppDir, v)
 		os.MkdirAll(vDir, 0755)
-		m := &Manifest{Version: v, Exe: "app.exe", Files: map[string]string{}}
+		m := &Manifest{Version: v, Exe: "app.exe", Files: map[string]FileEntry{}}
 		m.Save(filepath.Join(vDir, ManifestName))
 	}
 
@@ -99,7 +99,7 @@ func TestCleanOldVersionsKeepAll(t *testing.T) {
 	for _, v := range []string{"1.0.0", "2.0.0"} {
 		vDir := filepath.Join(config.AppDir, v)
 		os.MkdirAll(vDir, 0755)
-		m := &Manifest{Version: v, Exe: "app.exe", Files: map[string]string{}}
+		m := &Manifest{Version: v, Exe: "app.exe", Files: map[string]FileEntry{}}
 		m.Save(filepath.Join(vDir, ManifestName))
 	}
 
@@ -117,11 +117,11 @@ func TestGetLatestVersion(t *testing.T) {
 	config.AppDir = t.TempDir()
 
 	os.MkdirAll(filepath.Join(config.AppDir, "1.0.0", "sub"), 0755)
-	m1 := &Manifest{Version: "1.0.0", Exe: "app.exe", Files: map[string]string{}}
+	m1 := &Manifest{Version: "1.0.0", Exe: "app.exe", Files: map[string]FileEntry{}}
 	m1.Save(filepath.Join(config.AppDir, "1.0.0", ManifestName))
 
 	os.MkdirAll(filepath.Join(config.AppDir, "2.0.0", "sub"), 0755)
-	m2 := &Manifest{Version: "2.0.0", Exe: "app.exe", Files: map[string]string{}}
+	m2 := &Manifest{Version: "2.0.0", Exe: "app.exe", Files: map[string]FileEntry{}}
 	m2.Save(filepath.Join(config.AppDir, "2.0.0", ManifestName))
 
 	latest, err := GetLatestVersion(config)
