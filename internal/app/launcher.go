@@ -41,8 +41,8 @@ func runFromEmbedded(exeOverride string, splash *SplashWindow) error {
 		if exeOverride != "" {
 			exeName = exeOverride
 		}
-		ok, verifyErr := installedManifest.VerifySingle(config.VersionDir, exeName)
-		if verifyErr == nil && ok {
+		mismatches, verifyErr := installedManifest.Verify(config.VersionDir)
+		if verifyErr == nil && len(mismatches) == 0 {
 			LogVerbose(T(MsgAlreadyInstalled))
 			CleanOldVersions(config, []string{manifest.Version})
 			err := launch(filepath.Join(config.VersionDir, exeName))
@@ -92,8 +92,8 @@ func runFromFile(pkgPath, exeOverride string, splash *SplashWindow) error {
 		if exeOverride != "" {
 			exeName = exeOverride
 		}
-		ok, verifyErr := installedManifest.VerifySingle(config.VersionDir, exeName)
-		if verifyErr == nil && ok {
+		mismatches, verifyErr := installedManifest.Verify(config.VersionDir)
+		if verifyErr == nil && len(mismatches) == 0 {
 			LogVerbose(T(MsgAlreadyInstalled))
 			CleanOldVersions(config, []string{manifest.Version})
 			err := launch(filepath.Join(config.VersionDir, exeName))
