@@ -41,7 +41,7 @@ var messages = map[locale]map[MessageKey]string{
 		MsgRetryTitle:         "%s - Update",
 		MsgRetryBody:          "Previous version %s is still running.\n\nPlease close it and click Retry to continue.",
 		MsgErrorTitle:         "%s - Error",
-		MsgFilesLocked:        "App is running. Please close it and retry.\n\nLocked files:\n%s",
+		MsgFilesLocked:        "App is running. Please close the following and retry:\n%s",
 	},
 	localeKO: {
 		MsgInstalling:         "%s %s 설치 중...",
@@ -55,7 +55,7 @@ var messages = map[locale]map[MessageKey]string{
 		MsgRetryTitle:         "%s - 업데이트",
 		MsgRetryBody:          "이전 버전 %s 이(가) 실행 중입니다.\n\n종료 후 재시도를 클릭하세요.",
 		MsgErrorTitle:         "%s - 오류",
-		MsgFilesLocked:        "앱이 실행 중입니다. 종료 후 재시도하세요.\n\n잠긴 파일:\n%s",
+		MsgFilesLocked:        "앱이 실행 중입니다. 다음을 종료한 뒤 재시도하세요:\n%s",
 	},
 }
 

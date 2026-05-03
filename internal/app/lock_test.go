@@ -2,6 +2,7 @@ package app
 
 import (
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -25,5 +26,28 @@ func TestWaitForVersionDirUnlocked(t *testing.T) {
 
 	if err := waitForVersionDirUnlocked(dir); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestLockedExecutablesFiltersExe(t *testing.T) {
+	input := []string{
+		"resources/app.asar.unpacked/node_modules/uiohook-napi/build/Release/uiohook_napi.node",
+		"KeyBridge.exe",
+		"chrome_100_percent.pak",
+		"d3dcompiler_47.dll",
+		"resources/electron.exe",
+	}
+	want := []string{"KeyBridge.exe", "resources/electron.exe"}
+	got := lockedExecutables(input)
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("lockedExecutables = %v, want %v", got, want)
+	}
+}
+
+func TestLockedExecutablesNoExeReturnsEmpty(t *testing.T) {
+	input := []string{"a.dll", "b.pak", "c.node"}
+	got := lockedExecutables(input)
+	if len(got) != 0 {
+		t.Fatalf("expected empty, got %v", got)
 	}
 }

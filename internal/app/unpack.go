@@ -226,7 +226,11 @@ func waitForVersionDirUnlocked(versionDir string) error {
 			return nil
 		}
 
-		shown := locked[:min(len(locked), 10)]
+		display := lockedExecutables(locked)
+		if len(display) == 0 {
+			display = locked
+		}
+		shown := display[:min(len(display), 10)]
 		message := fmt.Sprintf(T(MsgFilesLocked), strings.Join(shown, "\n"))
 		title := fmt.Sprintf(T(MsgRetryTitle), filepath.Base(versionDir))
 
@@ -238,4 +242,14 @@ func waitForVersionDirUnlocked(versionDir string) error {
 			return fmt.Errorf("files locked: %s", strings.Join(locked, ", "))
 		}
 	}
+}
+
+func lockedExecutables(paths []string) []string {
+	var exes []string
+	for _, p := range paths {
+		if strings.EqualFold(filepath.Ext(p), ".exe") {
+			exes = append(exes, p)
+		}
+	}
+	return exes
 }
