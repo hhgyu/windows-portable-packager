@@ -34,9 +34,23 @@ jobs:
       - name: Run integration tests
         run: npm run test:integration
 
+  test-windows:
+    name: Test (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run Go tests
+        run: go test ./internal/app/ -v -count=1
+
   publish:
     name: Publish
-    needs: test
+    needs: [test, test-windows]
     runs-on: ubuntu-latest
     permissions:
       contents: read
