@@ -58,6 +58,7 @@ Optional `portablePackager` config:
     "exeName": "MyApp.exe",
     "arch": "amd64",
     "splash": "build/splash.png",
+    "splashMinDuration": 2000,
     "compression": "zstd",
     "level": 0
   }
@@ -69,6 +70,7 @@ Optional `portablePackager` config:
 | `exeName` | Executable filename | `<productName>.exe` |
 | `arch` | Target architecture | `amd64` |
 | `splash` | Splash image path (png/jpg/gif/apng) | — |
+| `splashMinDuration` | Minimum splash visible time in ms. `0` (or omitted) closes immediately when the child app spawns. | `0` |
 | `compression` | Compression format: `zstd`, `gzip`, `xz` | `zstd` |
 | `level` | Compression level (zstd: 1–19, gzip: 1–9, xz: 1–9, 0=default) | `0` |
 
@@ -113,6 +115,7 @@ set GOARCH=amd64 && go build -ldflags="-s -w" -o dist/MyApp-1.0.0-amd64.exe .
 | `-splash <path>` | Splash image path (png/jpg/gif/apng) |
 | `-compression <fmt>` | Compression format: zstd, gzip, xz (Default: zstd) |
 | `-level <n>` | Compression level (zstd: 1–19, gzip: 1–9, xz: 1–9, 0=default) |
+| `-splash-min-duration <ms>` | Minimum splash visible time in ms (Default: 0 = close immediately) |
 
 ### Run Options
 | Option | Description |
@@ -127,6 +130,8 @@ A splash image is displayed immediately on launch and stays visible during extra
 Supported formats: PNG, JPG, GIF (animated), APNG (animated).
 
 Embed via `portablePackager.splash` in your electron-builder `package.json`, or pass `-splash` at runtime.
+
+By default the splash window closes the moment the child app spawns, which can be jarring on fast machines (the splash flashes for under 100ms). Set `portablePackager.splashMinDuration` (or `pack -splash-min-duration <ms>`) to keep the splash on screen for at least N milliseconds. Errors that abort the launcher always close the splash immediately and bypass this minimum, so a failing app cannot strand the user staring at a frozen splash.
 
 ## .kbpkg Package Format
 `.kbpkg` is a compressed tar archive. The first entry must be `_manifest.json`. Default compression is **zstd**; gzip and xz packages are auto-detected on unpack.

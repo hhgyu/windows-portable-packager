@@ -58,6 +58,7 @@ npx windows-portable-packager init
     "exeName": "MyApp.exe",
     "arch": "amd64",
     "splash": "build/splash.png",
+    "splashMinDuration": 2000,
     "compression": "zstd",
     "level": 0
   }
@@ -69,6 +70,7 @@ npx windows-portable-packager init
 | `exeName` | 실행 파일 이름 | `<productName>.exe` |
 | `arch` | 대상 아키텍처 | `amd64` |
 | `splash` | 스플래시 이미지 경로 (png/jpg/gif/apng) | — |
+| `splashMinDuration` | 스플래시 최소 표시 시간 (ms). `0`이거나 미지정이면 자식 앱 실행 즉시 닫힘. | `0` |
 | `compression` | 압축 포맷: `zstd`, `gzip`, `xz` | `zstd` |
 | `level` | 압축 레벨 (zstd: 1–19, gzip: 1–9, xz: 1–9, 0=기본값) | `0` |
 
@@ -113,6 +115,7 @@ set GOARCH=amd64 && go build -ldflags="-s -w" -o dist/MyApp-1.0.0-amd64.exe .
 | `-splash <path>` | 스플래시 이미지 경로 (png/jpg/gif/apng) |
 | `-compression <fmt>` | 압축 포맷: zstd, gzip, xz (기본: zstd) |
 | `-level <n>` | 압축 레벨 (zstd: 1–19, gzip: 1–9, xz: 1–9, 0=기본값) |
+| `-splash-min-duration <ms>` | 스플래시 최소 표시 시간 (ms). 기본 `0` = 즉시 닫힘 |
 
 ### Run 옵션
 | 옵션 | 설명 |
@@ -127,6 +130,8 @@ set GOARCH=amd64 && go build -ldflags="-s -w" -o dist/MyApp-1.0.0-amd64.exe .
 지원 포맷: PNG, JPG, GIF (애니메이션), APNG (애니메이션).
 
 `portablePackager.splash`로 빌드 시 임베드하거나, 실행 시 `-splash` 플래그로 지정할 수 있습니다.
+
+기본 동작은 자식 앱이 실행되는 즉시 스플래시를 닫는 것이라, 빠른 환경에서는 스플래시가 100ms 미만으로 깜빡이듯 사라질 수 있습니다. `portablePackager.splashMinDuration`(또는 `pack -splash-min-duration <ms>`)을 설정하면 스플래시가 최소 N 밀리초 동안 유지됩니다. 런처가 오류로 중단될 때는 이 설정과 무관하게 즉시 닫혀, 실패한 앱이 멈춘 스플래시 뒤에 사용자를 가두지 않도록 합니다.
 
 ## .kbpkg 패키지 포맷
 `.kbpkg`는 압축된 tar 아카이브입니다. 첫 엔트리는 반드시 `_manifest.json`이어야 합니다. 기본 압축 포맷은 **zstd**이며, gzip/xz 패키지도 압축 해제 시 자동으로 감지됩니다.
