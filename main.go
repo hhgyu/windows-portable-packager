@@ -38,6 +38,38 @@ func main() {
 	}
 }
 
+// guardLauncherStartup acquires a per-app singleton mutex and arms a watchdog
+// timer. Returns a release function the caller MUST defer. If another instance
+// is already running, the process exits immediately with code 0 (we treat
+// double-launch as benign user behaviour, not an error).
+func guardLauncherStartup() func() {
+	manifest, err := resolvePackageManifest("")
+	appName := "windows-portable-packager"
+	if err == nil && manifest.AppName != "" {
+		appName = manifest.AppName
+	}
+
+	mutex, acquired, err := app.AcquireSingleton(appName)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: singleton mutex unavailable: %v\n", err)
+	} else if !acquired {
+		message := app.T(app.MsgAlreadyRunning)
+		title := fmt.Sprintf(app.T(app.MsgAlreadyRunningTitle), appName)
+		fmt.Fprintln(os.Stderr, message)
+		if !app.IsTerminal() {
+			app.ShowInfoDialog(title, message)
+		}
+		os.Exit(0)
+	}
+
+	app.StartWatchdog(appName, app.DefaultWatchdogTimeout)
+
+	return func() {
+		app.DisarmWatchdog()
+		mutex.Release()
+	}
+}
+
 func showError(msg string) {
 	fmt.Fprintln(os.Stderr, msg)
 	if !app.IsTerminal() {
@@ -47,6 +79,22 @@ func showError(msg string) {
 
 func runDefault() {
 	runCmd(nil)
+}
+
+func runCmd(args []string) {
+	release := guardLauncherStartup()
+	defer release()
+
+	fs := flag.NewFlagSet("run", flag.ExitOnError)
+	pkgPath := fs.String("package", "", "Path to .kbpkg file (auto-detected if empty)")
+	exeOverride := fs.String("exe", "", "Override main executable name")
+	splashPath := fs.String("splash", "", "Path to splash image (png/jpg/gif/apng)")
+	fs.Parse(args)
+
+	if err := app.Run(*pkgPath, *exeOverride, *splashPath); err != nil {
+		showError(fmt.Sprintf("Run error: %v", err))
+		os.Exit(1)
+	}
 }
 
 func parseGlobalFlags(args []string) []string {
@@ -131,19 +179,6 @@ func packCmd(args []string) {
 
 	if err := app.Pack(srcDir, *output, *appName, *version, *arch, exe, *splashPath, opts); err != nil {
 		showError(fmt.Sprintf("Pack error: %v", err))
-		os.Exit(1)
-	}
-}
-
-func runCmd(args []string) {
-	fs := flag.NewFlagSet("run", flag.ExitOnError)
-	pkgPath := fs.String("package", "", "Path to .kbpkg file (auto-detected if empty)")
-	exeOverride := fs.String("exe", "", "Override main executable name")
-	splashPath := fs.String("splash", "", "Path to splash image (png/jpg/gif/apng)")
-	fs.Parse(args)
-
-	if err := app.Run(*pkgPath, *exeOverride, *splashPath); err != nil {
-		showError(fmt.Sprintf("Run error: %v", err))
 		os.Exit(1)
 	}
 }

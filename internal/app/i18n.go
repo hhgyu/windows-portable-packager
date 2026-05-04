@@ -26,6 +26,10 @@ const (
 	MsgRetryBody
 	MsgErrorTitle
 	MsgFilesLocked
+	MsgAlreadyRunning
+	MsgAlreadyRunningTitle
+	MsgStartupTimeout
+	MsgStartupTimeoutTitle
 )
 
 var messages = map[locale]map[MessageKey]string{
@@ -42,6 +46,10 @@ var messages = map[locale]map[MessageKey]string{
 		MsgRetryBody:          "Previous version %s is still running.\n\nPlease close it and click Retry to continue.",
 		MsgErrorTitle:         "%s - Error",
 		MsgFilesLocked:        "App is running. Please close the following and retry:\n%s",
+		MsgAlreadyRunning:     "Another launcher instance is already running.\nIf the previous one appears stuck, end it from Task Manager and try again.",
+		MsgAlreadyRunningTitle: "%s - Already Running",
+		MsgStartupTimeout:     "Startup did not complete within %d seconds.\n\nThis usually means a security solution is blocking the launcher. See the troubleshooting section in the README for details.",
+		MsgStartupTimeoutTitle: "%s - Startup Timeout",
 	},
 	localeKO: {
 		MsgInstalling:         "%s %s 설치 중...",
@@ -56,6 +64,10 @@ var messages = map[locale]map[MessageKey]string{
 		MsgRetryBody:          "이전 버전 %s 이(가) 실행 중입니다.\n\n종료 후 재시도를 클릭하세요.",
 		MsgErrorTitle:         "%s - 오류",
 		MsgFilesLocked:        "앱이 실행 중입니다. 다음을 종료한 뒤 재시도하세요:\n%s",
+		MsgAlreadyRunning:     "런처가 이미 실행 중입니다.\n이전 런처가 멈춰 있다면 작업 관리자에서 종료한 뒤 다시 시도하세요.",
+		MsgAlreadyRunningTitle: "%s - 이미 실행 중",
+		MsgStartupTimeout:     "시작이 %d초 안에 완료되지 않았습니다.\n\n보안 솔루션이 런처를 차단하고 있을 수 있습니다. 자세한 내용은 README의 트러블슈팅을 참고하세요.",
+		MsgStartupTimeoutTitle: "%s - 시작 시간 초과",
 	},
 }
 
