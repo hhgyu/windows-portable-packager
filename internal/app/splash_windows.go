@@ -192,7 +192,7 @@ func imageToBitmap(img image.Image) (uintptr, int, int) {
 	screenDC, _, _ := procGetDC2.Call(0)
 	memDC, _, _ := procCreateCompatibleDC.Call(screenDC)
 
-	var bits uintptr
+	var bits unsafe.Pointer
 	hbmp, _, _ := procCreateDIBSection.Call(
 		memDC,
 		uintptr(unsafe.Pointer(&bi)),
@@ -201,8 +201,8 @@ func imageToBitmap(img image.Image) (uintptr, int, int) {
 		0, 0,
 	)
 
-	if bits != 0 && hbmp != 0 {
-		dst := unsafe.Slice((*byte)(unsafe.Pointer(bits)), w*h*4)
+	if bits != nil && hbmp != 0 {
+		dst := unsafe.Slice((*byte)(bits), w*h*4)
 		src := rgba.Pix
 		for i := 0; i < len(dst) && i < len(src); i += 4 {
 			dst[i] = src[i+2]
