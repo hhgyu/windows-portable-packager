@@ -181,34 +181,21 @@ func gdipInit2() bool {
 	return ret == 0
 }
 
-// premulLUT[c*256+a] = (c*a)/255. Replaces the per-pixel division in the hot
-// path with a single 64KB table lookup. Indexed flat for one bounds check
-// instead of two.
-var premulLUT [256 * 256]uint8
-
-func init() {
-	for c := 0; c < 256; c++ {
-		for a := 0; a < 256; a++ {
-			premulLUT[c<<8|a] = uint8(uint16(c) * uint16(a) / 255)
-		}
-	}
-}
-
-// premultiplyRGBAToBGRA converts an unpremultiplied Go RGBA buffer into a
-// premultiplied BGRA buffer (writes to dst). UpdateLayeredWindow with
-// AC_SRC_ALPHA requires premultiplied BGRA, hence the channel swap and
-// alpha scaling. Uses premulLUT to skip per-pixel division.
-func premultiplyRGBAToBGRA(dst, src []byte) {
+// rgbaToBGRA swaps the R and B channels of a Go image.RGBA buffer (which is
+// already alpha-premultiplied per the image package contract) so it matches
+// the premultiplied BGRA layout UpdateLayeredWindow with AC_SRC_ALPHA expects.
+// No per-pixel multiply: doing one here would double-premultiply alpha and
+// crush translucent pixels toward black.
+func rgbaToBGRA(dst, src []byte) {
 	n := len(dst)
 	if len(src) < n {
 		n = len(src)
 	}
 	for i := 0; i+3 < n; i += 4 {
-		a := uint(src[i+3])
-		dst[i] = premulLUT[uint(src[i+2])<<8|a]
-		dst[i+1] = premulLUT[uint(src[i+1])<<8|a]
-		dst[i+2] = premulLUT[uint(src[i])<<8|a]
-		dst[i+3] = uint8(a)
+		dst[i] = src[i+2]
+		dst[i+1] = src[i+1]
+		dst[i+2] = src[i]
+		dst[i+3] = src[i+3]
 	}
 }
 
@@ -242,7 +229,7 @@ func imageToBitmap(img image.Image) (uintptr, int, int) {
 
 	if bits != nil && hbmp != 0 {
 		dst := unsafe.Slice((*byte)(bits), w*h*4)
-		premultiplyRGBAToBGRA(dst, rgba.Pix)
+		rgbaToBGRA(dst, rgba.Pix)
 	}
 
 	procDeleteDC.Call(memDC)
@@ -535,35 +522,80 @@ func isAnimatedSplashExt(ext string) bool {
 	return e == ".gif" || e == ".apng" || e == ".png"
 }
 
-// loadFirstFrameFast decodes only the first/default frame so the splash window
-// can appear in ~5 ms instead of waiting for the full animation pipeline (~100 ms+).
-// For APNG, png.Decode returns the IHDR + first IDAT image, which is also the
-// APNG default frame and visually matches the animation's first frame in
-// nearly all real-world assets.
+// loadFirstFrameFast composes only the FIRST animation frame onto the full
+// canvas, so the splash window can appear before the remaining frames finish
+// decoding. APNG default frame (IHDR+IDAT) is NOT used because it can be a
+// fallback static image at a different position than the animation's frame[0]
+// (e.g. progress-bar overlays whose XOffset/YOffset differ from the IHDR).
 func loadFirstFrameFast(data []byte, ext string) (splashFrame, bool) {
 	switch strings.ToLower(ext) {
 	case ".gif":
-		img, err := gif.Decode(bytes.NewReader(data))
-		if err != nil {
+		g, err := gif.DecodeAll(bytes.NewReader(data))
+		if err != nil || len(g.Image) == 0 {
 			return splashFrame{}, false
 		}
-		return rasterFirstFrame(img), true
+		bounds := image.Rect(0, 0, g.Config.Width, g.Config.Height)
+		canvas := image.NewRGBA(bounds)
+		fb := g.Image[0].Bounds()
+		draw.Draw(canvas, fb, g.Image[0], fb.Min, draw.Over)
+		hbmp, w, h := imageToBitmap(canvas)
+		delay := time.Duration(g.Delay[0]) * 10 * time.Millisecond
+		if delay < 20*time.Millisecond {
+			delay = 100 * time.Millisecond
+		}
+		return splashFrame{hbmp: hbmp, width: w, height: h, delay: delay}, true
+
 	case ".png", ".apng":
-		img, _, err := image.Decode(bytes.NewReader(data))
-		if err != nil {
+		a, err := apng.DecodeAll(bytes.NewReader(data))
+		if err != nil || len(a.Frames) == 0 {
 			return splashFrame{}, false
 		}
-		return rasterFirstFrame(img), true
+		canvasW, canvasH := 0, 0
+		for _, f := range a.Frames {
+			fb := f.Image.Bounds()
+			if right := f.XOffset + fb.Dx(); right > canvasW {
+				canvasW = right
+			}
+			if bottom := f.YOffset + fb.Dy(); bottom > canvasH {
+				canvasH = bottom
+			}
+		}
+		if canvasW == 0 || canvasH == 0 {
+			return splashFrame{}, false
+		}
+		canvasBounds := image.Rect(0, 0, canvasW, canvasH)
+		canvas := image.NewRGBA(canvasBounds)
+		var first *apng.Frame
+		for i := range a.Frames {
+			if i == 0 && a.Frames[i].IsDefault {
+				continue
+			}
+			first = &a.Frames[i]
+			break
+		}
+		if first == nil {
+			return splashFrame{}, false
+		}
+		fb := first.Image.Bounds()
+		target := image.Rect(first.XOffset, first.YOffset, first.XOffset+fb.Dx(), first.YOffset+fb.Dy())
+		blendOp := draw.Over
+		if first.BlendOp == apng.BLEND_OP_SOURCE {
+			blendOp = draw.Src
+		}
+		draw.Draw(canvas, target, first.Image, fb.Min, blendOp)
+		hbmp, w, h := imageToBitmap(canvas)
+		var delay time.Duration
+		if first.DelayDenominator > 0 {
+			delay = time.Duration(float64(first.DelayNumerator)/float64(first.DelayDenominator)*1000) * time.Millisecond
+		} else {
+			delay = 100 * time.Millisecond
+		}
+		if delay < 20*time.Millisecond {
+			delay = 100 * time.Millisecond
+		}
+		return splashFrame{hbmp: hbmp, width: w, height: h, delay: delay}, true
 	}
 	return splashFrame{}, false
-}
-
-func rasterFirstFrame(img image.Image) splashFrame {
-	bounds := img.Bounds()
-	rgba := image.NewRGBA(image.Rect(0, 0, bounds.Dx(), bounds.Dy()))
-	draw.Draw(rgba, rgba.Rect, img, bounds.Min, draw.Src)
-	hbmp, w, h := imageToBitmap(rgba)
-	return splashFrame{hbmp: hbmp, width: w, height: h, delay: 100 * time.Millisecond}
 }
 
 // loadRemainingFramesAsync runs on a background goroutine after the splash is
