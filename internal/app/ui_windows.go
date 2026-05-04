@@ -85,6 +85,8 @@ func messageBox(title, message string, flags uintptr) int {
 }
 
 func ShowRetryDialog(title, message string) bool {
+	PauseWatchdog()
+	defer ResumeWatchdog()
 	ret := messageBox(title, message, mbRetryCancel|mbIconWarning)
 	return ret == idRetry
 }
@@ -93,6 +95,8 @@ func ShowErrorDialog(title, message string) {
 	if isTerminal {
 		return
 	}
+	PauseWatchdog()
+	defer ResumeWatchdog()
 	messageBox(title, message, mbOk|mbIconError)
 }
 
@@ -100,5 +104,7 @@ func ShowInfoDialog(title, message string) {
 	if isTerminal {
 		return
 	}
+	PauseWatchdog()
+	defer ResumeWatchdog()
 	messageBox(title, message, mbOk|mbIconInfo)
 }
