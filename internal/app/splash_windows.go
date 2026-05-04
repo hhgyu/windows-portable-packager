@@ -11,6 +11,7 @@ import (
 	_ "image/png"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -337,7 +338,12 @@ func loadAPNGFrames(data []byte) ([]splashFrame, error) {
 	canvas := image.NewRGBA(canvasBounds)
 	var prevSnapshot *image.RGBA
 
-	var frames []splashFrame
+	type pendingFrame struct {
+		snapshot *image.RGBA
+		delay    time.Duration
+	}
+	var pending []pendingFrame
+
 	for i, frame := range a.Frames {
 		// IsDefault is the static fallback PNG and per spec is not part of
 		// the animation loop, so skip it when present on frame 0.
@@ -369,8 +375,6 @@ func loadAPNGFrames(data []byte) ([]splashFrame, error) {
 		snapshot := image.NewRGBA(canvasBounds)
 		draw.Draw(snapshot, canvasBounds, canvas, image.Point{}, draw.Src)
 
-		hbmp, w, h := imageToBitmap(snapshot)
-
 		var delay time.Duration
 		if frame.DelayDenominator > 0 {
 			delay = time.Duration(float64(frame.DelayNumerator)/float64(frame.DelayDenominator)*1000) * time.Millisecond
@@ -381,7 +385,7 @@ func loadAPNGFrames(data []byte) ([]splashFrame, error) {
 			delay = 100 * time.Millisecond
 		}
 
-		frames = append(frames, splashFrame{hbmp: hbmp, width: w, height: h, delay: delay})
+		pending = append(pending, pendingFrame{snapshot: snapshot, delay: delay})
 
 		// DisposeOp determines the canvas state seen by the next frame.
 		switch frame.DisposeOp {
@@ -393,6 +397,35 @@ func loadAPNGFrames(data []byte) ([]splashFrame, error) {
 			}
 		}
 	}
+
+	// imageToBitmap performs CPU premultiply + GDI CreateDIBSection per frame.
+	// GDI object creation is thread-safe so long as each goroutine works on
+	// its own DC, which the function already does — fan out across NumCPU
+	// workers for ~Ncore speedup on this stage.
+	frames := make([]splashFrame, len(pending))
+	workers := runtime.NumCPU()
+	if workers > len(pending) {
+		workers = len(pending)
+	}
+	var wg sync.WaitGroup
+	jobs := make(chan int, len(pending))
+	for w := 0; w < workers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for idx := range jobs {
+				p := pending[idx]
+				hbmp, fw, fh := imageToBitmap(p.snapshot)
+				frames[idx] = splashFrame{hbmp: hbmp, width: fw, height: fh, delay: p.delay}
+			}
+		}()
+	}
+	for i := range pending {
+		jobs <- i
+	}
+	close(jobs)
+	wg.Wait()
+
 	return frames, nil
 }
 
