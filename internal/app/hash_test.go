@@ -229,6 +229,177 @@ func TestManifestVerifyMissingFile(t *testing.T) {
 	}
 }
 
+func baseManifest() *Manifest {
+	return &Manifest{
+		AppName:     "MyApp",
+		Version:     "1.0.0",
+		Arch:        "amd64",
+		Exe:         "MyApp.exe",
+		Splash:      "_splash.png",
+		SplashMinMs: 1500,
+		Timestamp:   "2026-01-01T00:00:00Z",
+		Files: map[string]FileEntry{
+			"MyApp.exe":          {Hash: "aaaaaaaaaaaaaaaa", Size: 100},
+			"resources/app.asar": {Hash: "bbbbbbbbbbbbbbbb", Size: 200},
+		},
+	}
+}
+
+func TestEqualForInstallIdentical(t *testing.T) {
+	a := baseManifest()
+	b := baseManifest()
+	if !a.EqualForInstall(b) {
+		t.Fatal("identical manifests should be equal for install")
+	}
+}
+
+func TestEqualForInstallIgnoresTimestamp(t *testing.T) {
+	a := baseManifest()
+	b := baseManifest()
+	b.Timestamp = "2099-12-31T23:59:59Z"
+	if !a.EqualForInstall(b) {
+		t.Fatal("timestamp difference must be ignored")
+	}
+}
+
+func TestEqualForInstallDetectsContentChange(t *testing.T) {
+	a := baseManifest()
+	b := baseManifest()
+	b.Files["MyApp.exe"] = FileEntry{Hash: "cccccccccccccccc", Size: 100}
+	if a.EqualForInstall(b) {
+		t.Fatal("changed file hash must break equality")
+	}
+}
+
+func TestEqualForInstallDetectsSizeChange(t *testing.T) {
+	a := baseManifest()
+	b := baseManifest()
+	entry := b.Files["MyApp.exe"]
+	entry.Size = 999
+	b.Files["MyApp.exe"] = entry
+	if a.EqualForInstall(b) {
+		t.Fatal("changed file size must break equality")
+	}
+}
+
+func TestEqualForInstallDetectsExeChange(t *testing.T) {
+	a := baseManifest()
+	b := baseManifest()
+	b.Exe = "Renamed.exe"
+	if a.EqualForInstall(b) {
+		t.Fatal("changed Exe must break equality")
+	}
+}
+
+func TestEqualForInstallDetectsSplashChange(t *testing.T) {
+	a := baseManifest()
+	b := baseManifest()
+	b.Splash = "_splash.gif"
+	if a.EqualForInstall(b) {
+		t.Fatal("changed Splash must break equality")
+	}
+}
+
+func TestEqualForInstallDetectsSplashMinMsChange(t *testing.T) {
+	a := baseManifest()
+	b := baseManifest()
+	b.SplashMinMs = 3000
+	if a.EqualForInstall(b) {
+		t.Fatal("changed SplashMinMs must break equality")
+	}
+}
+
+func TestEqualForInstallDetectsAppNameChange(t *testing.T) {
+	a := baseManifest()
+	b := baseManifest()
+	b.AppName = "OtherApp"
+	if a.EqualForInstall(b) {
+		t.Fatal("changed AppName must break equality")
+	}
+}
+
+func TestEqualForInstallDetectsVersionChange(t *testing.T) {
+	a := baseManifest()
+	b := baseManifest()
+	b.Version = "2.0.0"
+	if a.EqualForInstall(b) {
+		t.Fatal("changed Version must break equality")
+	}
+}
+
+func TestEqualForInstallDetectsArchChange(t *testing.T) {
+	a := baseManifest()
+	b := baseManifest()
+	b.Arch = "arm64"
+	if a.EqualForInstall(b) {
+		t.Fatal("changed Arch must break equality")
+	}
+}
+
+func TestEqualForInstallDetectsAddedFile(t *testing.T) {
+	a := baseManifest()
+	b := baseManifest()
+	b.Files["new.dll"] = FileEntry{Hash: "dddddddddddddddd", Size: 50}
+	if a.EqualForInstall(b) {
+		t.Fatal("extra file must break equality")
+	}
+}
+
+func TestEqualForInstallDetectsRemovedFile(t *testing.T) {
+	a := baseManifest()
+	b := baseManifest()
+	delete(b.Files, "resources/app.asar")
+	if a.EqualForInstall(b) {
+		t.Fatal("removed file must break equality")
+	}
+}
+
+func TestEqualForInstallDetectsRenamedFile(t *testing.T) {
+	a := baseManifest()
+	b := baseManifest()
+	entry := b.Files["resources/app.asar"]
+	delete(b.Files, "resources/app.asar")
+	b.Files["resources/renamed.asar"] = entry
+	if a.EqualForInstall(b) {
+		t.Fatal("renamed file (same hash, different path) must break equality")
+	}
+}
+
+func TestEqualForInstallNilHandling(t *testing.T) {
+	var nilM *Manifest
+	if !nilM.EqualForInstall(nil) {
+		t.Fatal("nil vs nil should be equal")
+	}
+	if nilM.EqualForInstall(baseManifest()) {
+		t.Fatal("nil vs non-nil should not be equal")
+	}
+	if baseManifest().EqualForInstall(nil) {
+		t.Fatal("non-nil vs nil should not be equal")
+	}
+}
+
+func TestEqualForInstallRebuildScenario(t *testing.T) {
+	dir := t.TempDir()
+	writeTestFile(t, dir, "MyApp.exe", "v1 binary content")
+	writeTestFile(t, dir, "resources/app.asar", "v1 asar bytes")
+
+	first, err := GenerateManifest(dir, "MyApp", "1.0.0", "amd64", "MyApp.exe", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	writeTestFile(t, dir, "resources/app.asar", "v2 asar bytes - script changed")
+
+	second, err := GenerateManifest(dir, "MyApp", "1.0.0", "amd64", "MyApp.exe", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if first.EqualForInstall(second) {
+		t.Fatal("rebuild with same version but changed script must NOT be equal — this is the bug we are fixing")
+	}
+}
+
 func TestManifestVerifySingle(t *testing.T) {
 	dir := t.TempDir()
 	writeTestFile(t, dir, "good.txt", "good")

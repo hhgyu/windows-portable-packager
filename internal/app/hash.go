@@ -129,6 +129,45 @@ func (m *Manifest) VerifySingle(rootDir, relPath string) (bool, error) {
 	return verifyEntry(rootDir, relPath, entry)
 }
 
+// EqualForInstall reports whether two manifests describe the same installable
+// payload. It compares every field that affects what lands on disk or how the
+// launcher behaves, but ignores cosmetic metadata that legitimately changes
+// between builds of identical content.
+//
+// Compared:
+//   - AppName, Version, Arch (would normally also imply same install path,
+//     but we compare defensively in case the caller routes differently)
+//   - Exe, Splash, SplashMinMs (launcher-visible behaviour)
+//   - Files (per-path Hash and Size — the actual payload)
+//
+// Ignored:
+//   - Timestamp (regenerated on every pack even for identical content)
+//
+// Two nil manifests compare equal; a nil vs non-nil manifest does not.
+func (m *Manifest) EqualForInstall(other *Manifest) bool {
+	if m == nil || other == nil {
+		return m == nil && other == nil
+	}
+	if m.AppName != other.AppName ||
+		m.Version != other.Version ||
+		m.Arch != other.Arch ||
+		m.Exe != other.Exe ||
+		m.Splash != other.Splash ||
+		m.SplashMinMs != other.SplashMinMs {
+		return false
+	}
+	if len(m.Files) != len(other.Files) {
+		return false
+	}
+	for path, entry := range m.Files {
+		otherEntry, ok := other.Files[path]
+		if !ok || otherEntry != entry {
+			return false
+		}
+	}
+	return true
+}
+
 func verifyEntry(rootDir, relPath string, entry FileEntry) (bool, error) {
 	fullPath := filepath.Join(rootDir, filepath.FromSlash(relPath))
 	info, err := os.Stat(fullPath)

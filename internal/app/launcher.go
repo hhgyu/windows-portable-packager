@@ -53,17 +53,21 @@ func runFromEmbedded(exeOverride string, splash *SplashWindow) error {
 		if exeOverride != "" {
 			exeName = exeOverride
 		}
-		mismatches, verifyErr := installedManifest.Verify(config.VersionDir)
-		if verifyErr == nil && len(mismatches) == 0 {
-			LogVerbose(T(MsgAlreadyInstalled))
-			CleanOldVersions(config, []string{manifest.Version})
-			err := launch(filepath.Join(config.VersionDir, exeName))
-			if err != nil {
-				splash.ForceClose()
-			} else {
-				splash.Close()
+		if !manifest.EqualForInstall(installedManifest) {
+			LogVerbose(T(MsgInstalledContentChanged))
+		} else {
+			mismatches, verifyErr := manifest.Verify(config.VersionDir)
+			if verifyErr == nil && len(mismatches) == 0 {
+				LogVerbose(T(MsgAlreadyInstalled))
+				CleanOldVersions(config, []string{manifest.Version})
+				err := launch(filepath.Join(config.VersionDir, exeName))
+				if err != nil {
+					splash.ForceClose()
+				} else {
+					splash.Close()
+				}
+				return err
 			}
-			return err
 		}
 	}
 
@@ -113,17 +117,21 @@ func runFromFile(pkgPath, exeOverride string, splash *SplashWindow) error {
 		if exeOverride != "" {
 			exeName = exeOverride
 		}
-		mismatches, verifyErr := installedManifest.Verify(config.VersionDir)
-		if verifyErr == nil && len(mismatches) == 0 {
-			LogVerbose(T(MsgAlreadyInstalled))
-			CleanOldVersions(config, []string{manifest.Version})
-			err := launch(filepath.Join(config.VersionDir, exeName))
-			if err != nil {
-				splash.ForceClose()
-			} else {
-				splash.Close()
+		if !manifest.EqualForInstall(installedManifest) {
+			LogVerbose(T(MsgInstalledContentChanged))
+		} else {
+			mismatches, verifyErr := manifest.Verify(config.VersionDir)
+			if verifyErr == nil && len(mismatches) == 0 {
+				LogVerbose(T(MsgAlreadyInstalled))
+				CleanOldVersions(config, []string{manifest.Version})
+				err := launch(filepath.Join(config.VersionDir, exeName))
+				if err != nil {
+					splash.ForceClose()
+				} else {
+					splash.Close()
+				}
+				return err
 			}
-			return err
 		}
 	}
 

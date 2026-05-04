@@ -95,8 +95,8 @@ func TestAllMessageKeysHaveEnglish(t *testing.T) {
 	defer SetLocale("en")
 
 	keys := []MessageKey{
-		MsgInstalling, MsgAlreadyInstalled, MsgExtracting,
-		MsgLaunching, MsgNoPackageFound, MsgRemovingOldVersion,
+		MsgInstalling, MsgAlreadyInstalled, MsgInstalledContentChanged,
+		MsgExtracting, MsgLaunching, MsgNoPackageFound, MsgRemovingOldVersion,
 		MsgOldVersionInUse, MsgFailedToRemove, MsgRetryTitle,
 		MsgRetryBody, MsgErrorTitle,
 	}
@@ -113,8 +113,8 @@ func TestAllMessageKeysHaveKorean(t *testing.T) {
 	defer SetLocale("en")
 
 	keys := []MessageKey{
-		MsgInstalling, MsgAlreadyInstalled, MsgExtracting,
-		MsgLaunching, MsgNoPackageFound, MsgRemovingOldVersion,
+		MsgInstalling, MsgAlreadyInstalled, MsgInstalledContentChanged,
+		MsgExtracting, MsgLaunching, MsgNoPackageFound, MsgRemovingOldVersion,
 		MsgOldVersionInUse, MsgFailedToRemove, MsgRetryTitle,
 		MsgRetryBody, MsgErrorTitle,
 	}
