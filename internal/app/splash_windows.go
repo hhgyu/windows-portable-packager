@@ -180,6 +180,37 @@ func gdipInit2() bool {
 	return ret == 0
 }
 
+// premulLUT[c*256+a] = (c*a)/255. Replaces the per-pixel division in the hot
+// path with a single 64KB table lookup. Indexed flat for one bounds check
+// instead of two.
+var premulLUT [256 * 256]uint8
+
+func init() {
+	for c := 0; c < 256; c++ {
+		for a := 0; a < 256; a++ {
+			premulLUT[c<<8|a] = uint8(uint16(c) * uint16(a) / 255)
+		}
+	}
+}
+
+// premultiplyRGBAToBGRA converts an unpremultiplied Go RGBA buffer into a
+// premultiplied BGRA buffer (writes to dst). UpdateLayeredWindow with
+// AC_SRC_ALPHA requires premultiplied BGRA, hence the channel swap and
+// alpha scaling. Uses premulLUT to skip per-pixel division.
+func premultiplyRGBAToBGRA(dst, src []byte) {
+	n := len(dst)
+	if len(src) < n {
+		n = len(src)
+	}
+	for i := 0; i+3 < n; i += 4 {
+		a := uint(src[i+3])
+		dst[i] = premulLUT[uint(src[i+2])<<8|a]
+		dst[i+1] = premulLUT[uint(src[i+1])<<8|a]
+		dst[i+2] = premulLUT[uint(src[i])<<8|a]
+		dst[i+3] = uint8(a)
+	}
+}
+
 func imageToBitmap(img image.Image) (uintptr, int, int) {
 	bounds := img.Bounds()
 	w, h := bounds.Dx(), bounds.Dy()
@@ -210,16 +241,7 @@ func imageToBitmap(img image.Image) (uintptr, int, int) {
 
 	if bits != nil && hbmp != 0 {
 		dst := unsafe.Slice((*byte)(bits), w*h*4)
-		src := rgba.Pix
-		// UpdateLayeredWindow with AC_SRC_ALPHA requires premultiplied BGRA:
-		// each colour channel must be scaled by alpha/255 before composition.
-		for i := 0; i+3 < len(dst) && i+3 < len(src); i += 4 {
-			a := src[i+3]
-			dst[i] = uint8(uint16(src[i+2]) * uint16(a) / 255)
-			dst[i+1] = uint8(uint16(src[i+1]) * uint16(a) / 255)
-			dst[i+2] = uint8(uint16(src[i]) * uint16(a) / 255)
-			dst[i+3] = a
-		}
+		premultiplyRGBAToBGRA(dst, rgba.Pix)
 	}
 
 	procDeleteDC.Call(memDC)
