@@ -3,7 +3,7 @@
 
 Go-based Windows portable launcher for Electron apps.
 
-Electron's default portable build extracts files **every time** it runs. This tool extracts to `%APPDATA%` **only once**, verifies file integrity using SHA256 hashes, and automatically cleans up previous versions.
+Electron's default portable build extracts files **every time** it runs. This tool extracts to `%APPDATA%` **only once**, verifies file integrity using xxHash64 hashes, and automatically cleans up previous versions.
 
 ## How it works
 All information such as app name, version, and architecture is read from the `.kbpkg` manifest at runtime. No app-specific information is hardcoded into the tool itself.
@@ -145,9 +145,9 @@ By default the splash window closes the moment the child app spawns, which can b
   "splash": "_splash.png",
   "timestamp": "2026-01-01T00:00:00Z",
   "files": {
-    "MyApp.exe": "sha256hex...",
-    "resources/app.asar": "sha256hex...",
-    "locales/en-US.pak": "sha256hex..."
+    "MyApp.exe": "xxhash64hex...",
+    "resources/app.asar": "xxhash64hex...",
+    "locales/en-US.pak": "xxhash64hex..."
   }
 }
 ```

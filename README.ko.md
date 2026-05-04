@@ -3,7 +3,7 @@
 
 Electron 앱을 위한 Go 기반 Windows 포터블 런처.
 
-Electron의 기본 portable 빌드는 **실행할 때마다** 압축을 해제합니다. 이 도구는 `%APPDATA%` 하위에 **한 번만 압축 해제**하고, SHA256 해시로 파일 무결성을 검증하며, 이전 버전을 자동으로 정리합니다.
+Electron의 기본 portable 빌드는 **실행할 때마다** 압축을 해제합니다. 이 도구는 `%APPDATA%` 하위에 **한 번만 압축 해제**하고, xxHash64 해시로 파일 무결성을 검증하며, 이전 버전을 자동으로 정리합니다.
 
 ## 동작 방식
 앱 이름, 버전, 아키텍처 등 모든 정보는 `.kbpkg` 매니페스트에서 런타임에 읽어옵니다. 이 도구 자체에는 앱 관련 정보가 하드코딩되어 있지 않습니다.
@@ -145,9 +145,9 @@ set GOARCH=amd64 && go build -ldflags="-s -w" -o dist/MyApp-1.0.0-amd64.exe .
   "splash": "_splash.png",
   "timestamp": "2026-01-01T00:00:00Z",
   "files": {
-    "MyApp.exe": "sha256hex...",
-    "resources/app.asar": "sha256hex...",
-    "locales/en-US.pak": "sha256hex..."
+    "MyApp.exe": "xxhash64hex...",
+    "resources/app.asar": "xxhash64hex...",
+    "locales/en-US.pak": "xxhash64hex..."
   }
 }
 ```
