@@ -41,48 +41,64 @@ var (
 	procGlobalLock            = kernel32DLL.NewProc("GlobalLock")
 	procGlobalUnlock          = kernel32DLL.NewProc("GlobalUnlock")
 
-	procCreateWindowExW2   = user32DLL.NewProc("CreateWindowExW")
-	procDefWindowProcW2    = user32DLL.NewProc("DefWindowProcW")
-	procDestroyWindow2     = user32DLL.NewProc("DestroyWindow")
-	procDispatchMessageW2  = user32DLL.NewProc("DispatchMessageW")
-	procGetDC2             = user32DLL.NewProc("GetDC")
-	procGetMessageW2       = user32DLL.NewProc("GetMessageW")
-	procGetSystemMetrics2  = user32DLL.NewProc("GetSystemMetrics")
-	procLoadCursorW2       = user32DLL.NewProc("LoadCursorW")
-	procPostQuitMessage2   = user32DLL.NewProc("PostQuitMessage")
-	procRegisterClassExW2  = user32DLL.NewProc("RegisterClassExW")
-	procReleaseDC2         = user32DLL.NewProc("ReleaseDC")
-	procSetTimer2          = user32DLL.NewProc("SetTimer")
-	procKillTimer2         = user32DLL.NewProc("KillTimer")
-	procShowWindow2        = user32DLL.NewProc("ShowWindow")
-	procTranslateMessage2  = user32DLL.NewProc("TranslateMessage")
-	procUpdateWindow2      = user32DLL.NewProc("UpdateWindow")
-	procInvalidateRect2    = user32DLL.NewProc("InvalidateRect")
-	procBeginPaint2        = user32DLL.NewProc("BeginPaint")
-	procEndPaint2          = user32DLL.NewProc("EndPaint")
-	procGetModuleHandleW2  = kernel32DLL.NewProc("GetModuleHandleW")
+	procCreateWindowExW2    = user32DLL.NewProc("CreateWindowExW")
+	procDefWindowProcW2     = user32DLL.NewProc("DefWindowProcW")
+	procDestroyWindow2      = user32DLL.NewProc("DestroyWindow")
+	procDispatchMessageW2   = user32DLL.NewProc("DispatchMessageW")
+	procGetDC2              = user32DLL.NewProc("GetDC")
+	procGetMessageW2        = user32DLL.NewProc("GetMessageW")
+	procGetSystemMetrics2   = user32DLL.NewProc("GetSystemMetrics")
+	procLoadCursorW2        = user32DLL.NewProc("LoadCursorW")
+	procPostQuitMessage2    = user32DLL.NewProc("PostQuitMessage")
+	procRegisterClassExW2   = user32DLL.NewProc("RegisterClassExW")
+	procReleaseDC2          = user32DLL.NewProc("ReleaseDC")
+	procSetTimer2           = user32DLL.NewProc("SetTimer")
+	procKillTimer2          = user32DLL.NewProc("KillTimer")
+	procShowWindow2         = user32DLL.NewProc("ShowWindow")
+	procTranslateMessage2   = user32DLL.NewProc("TranslateMessage")
+	procUpdateLayeredWindow = user32DLL.NewProc("UpdateLayeredWindow")
+	procGetModuleHandleW2   = kernel32DLL.NewProc("GetModuleHandleW")
 
-	procCreateCompatibleDC     = gdi32DLL.NewProc("CreateCompatibleDC")
-	procCreateDIBSection       = gdi32DLL.NewProc("CreateDIBSection")
-	procSelectObject           = gdi32DLL.NewProc("SelectObject")
-	procDeleteObject           = gdi32DLL.NewProc("DeleteObject")
-	procDeleteDC               = gdi32DLL.NewProc("DeleteDC")
-	procBitBlt                 = gdi32DLL.NewProc("BitBlt")
+	procCreateCompatibleDC = gdi32DLL.NewProc("CreateCompatibleDC")
+	procCreateDIBSection   = gdi32DLL.NewProc("CreateDIBSection")
+	procSelectObject       = gdi32DLL.NewProc("SelectObject")
+	procDeleteObject       = gdi32DLL.NewProc("DeleteObject")
+	procDeleteDC           = gdi32DLL.NewProc("DeleteDC")
 )
 
 const (
-	wmDestroy2  = 0x0002
-	wmPaint2    = 0x000F
-	wmTimer2    = 0x0113
-	wsPopup2    = 0x80000000
-	wsVisible2  = 0x10000000
-	swShow2     = 5
-	smCxScreen2 = 0
-	smCyScreen2 = 1
-	timerID2    = 1
+	wmDestroy2   = 0x0002
+	wmTimer2     = 0x0113
+	wsPopup2     = 0x80000000
+	wsExLayered  = 0x00080000
+	swShow2      = 5
+	smCxScreen2  = 0
+	smCyScreen2  = 1
+	timerID2     = 1
 	gmemMoveable = 0x0002
-	srccopy      = 0x00CC0020
+	ulwAlpha     = 0x00000002
+	acSrcOver    = 0x00
+	acSrcAlpha   = 0x01
 )
+
+// blendFunction matches Win32 BLENDFUNCTION used by UpdateLayeredWindow.
+// Layout is fixed by the API and must not be reordered.
+type blendFunction struct {
+	BlendOp             byte
+	BlendFlags          byte
+	SourceConstantAlpha byte
+	AlphaFormat         byte
+}
+
+type pointL struct {
+	X int32
+	Y int32
+}
+
+type sizeL struct {
+	CX int32
+	CY int32
+}
 
 type wndClassExW2 struct {
 	cbSize        uint32
@@ -106,15 +122,6 @@ type msg2 struct {
 	lParam  uintptr
 	time    uint32
 	pt      struct{ x, y int32 }
-}
-
-type paintStruct2 struct {
-	hdc         uintptr
-	fErase      int32
-	rcPaint     struct{ left, top, right, bottom int32 }
-	fRestore    int32
-	fIncUpdate  int32
-	rgbReserved [32]byte
 }
 
 type bitmapInfoHeader struct {
@@ -204,11 +211,14 @@ func imageToBitmap(img image.Image) (uintptr, int, int) {
 	if bits != nil && hbmp != 0 {
 		dst := unsafe.Slice((*byte)(bits), w*h*4)
 		src := rgba.Pix
-		for i := 0; i < len(dst) && i < len(src); i += 4 {
-			dst[i] = src[i+2]
-			dst[i+1] = src[i+1]
-			dst[i+2] = src[i]
-			dst[i+3] = src[i+3]
+		// UpdateLayeredWindow with AC_SRC_ALPHA requires premultiplied BGRA:
+		// each colour channel must be scaled by alpha/255 before composition.
+		for i := 0; i+3 < len(dst) && i+3 < len(src); i += 4 {
+			a := src[i+3]
+			dst[i] = uint8(uint16(src[i+2]) * uint16(a) / 255)
+			dst[i+1] = uint8(uint16(src[i+1]) * uint16(a) / 255)
+			dst[i+2] = uint8(uint16(src[i]) * uint16(a) / 255)
+			dst[i+3] = a
 		}
 	}
 
@@ -284,22 +294,58 @@ func loadAPNGFrames(data []byte) ([]splashFrame, error) {
 		return nil, nil
 	}
 
-	var frames []splashFrame
-	bounds := a.Frames[0].Image.Bounds()
-	for _, b := range a.Frames {
-		if b.Image.Bounds().Max.X > bounds.Max.X {
-			bounds = b.Image.Bounds()
+	// APNG canvas is the union of every frame's destination rect
+	// (XOffset+Width, YOffset+Height). Frames are partial images placed
+	// onto the canvas at their offsets, not standalone full-size images.
+	canvasW, canvasH := 0, 0
+	for _, f := range a.Frames {
+		fb := f.Image.Bounds()
+		if right := f.XOffset + fb.Dx(); right > canvasW {
+			canvasW = right
+		}
+		if bottom := f.YOffset + fb.Dy(); bottom > canvasH {
+			canvasH = bottom
 		}
 	}
+	if canvasW == 0 || canvasH == 0 {
+		return nil, nil
+	}
 
-	canvas := image.NewRGBA(bounds)
+	canvasBounds := image.Rect(0, 0, canvasW, canvasH)
+	canvas := image.NewRGBA(canvasBounds)
+	var prevSnapshot *image.RGBA
 
-	for _, frame := range a.Frames {
+	var frames []splashFrame
+	for i, frame := range a.Frames {
+		// IsDefault is the static fallback PNG and per spec is not part of
+		// the animation loop, so skip it when present on frame 0.
+		if i == 0 && frame.IsDefault {
+			continue
+		}
+
 		fb := frame.Image.Bounds()
-		draw.Draw(canvas, fb, frame.Image, fb.Min, draw.Over)
+		target := image.Rect(
+			frame.XOffset, frame.YOffset,
+			frame.XOffset+fb.Dx(), frame.YOffset+fb.Dy(),
+		)
 
-		snapshot := image.NewRGBA(bounds)
-		draw.Draw(snapshot, bounds, canvas, bounds.Min, draw.Src)
+		// DISPOSE_OP_PREVIOUS requires the pre-render canvas to be restored
+		// before the next frame draws; snapshot it while it is still intact.
+		if frame.DisposeOp == apng.DISPOSE_OP_PREVIOUS {
+			prevSnapshot = image.NewRGBA(canvasBounds)
+			draw.Draw(prevSnapshot, canvasBounds, canvas, image.Point{}, draw.Src)
+		}
+
+		// BLEND_OP_SOURCE replaces destination pixels (alpha included);
+		// BLEND_OP_OVER alpha-blends onto the existing canvas.
+		blendOp := draw.Over
+		if frame.BlendOp == apng.BLEND_OP_SOURCE {
+			blendOp = draw.Src
+		}
+		draw.Draw(canvas, target, frame.Image, fb.Min, blendOp)
+
+		snapshot := image.NewRGBA(canvasBounds)
+		draw.Draw(snapshot, canvasBounds, canvas, image.Point{}, draw.Src)
 
 		hbmp, w, h := imageToBitmap(snapshot)
 
@@ -315,35 +361,65 @@ func loadAPNGFrames(data []byte) ([]splashFrame, error) {
 
 		frames = append(frames, splashFrame{hbmp: hbmp, width: w, height: h, delay: delay})
 
-		if frame.DisposeOp == apng.DISPOSE_OP_BACKGROUND {
-			draw.Draw(canvas, fb, image.Transparent, image.Point{}, draw.Src)
+		// DisposeOp determines the canvas state seen by the next frame.
+		switch frame.DisposeOp {
+		case apng.DISPOSE_OP_BACKGROUND:
+			draw.Draw(canvas, target, image.Transparent, image.Point{}, draw.Src)
+		case apng.DISPOSE_OP_PREVIOUS:
+			if prevSnapshot != nil {
+				draw.Draw(canvas, canvasBounds, prevSnapshot, image.Point{}, draw.Src)
+			}
 		}
 	}
 	return frames, nil
 }
 
+// updateLayeredFrame pushes a single splashFrame to the layered window via
+// UpdateLayeredWindow. The bitmap MUST already hold premultiplied BGRA data
+// because we pass AC_SRC_ALPHA in the BLENDFUNCTION.
+func updateLayeredFrame(hwnd uintptr, frame splashFrame) {
+	if frame.hbmp == 0 {
+		return
+	}
+	screenDC, _, _ := procGetDC2.Call(0)
+	if screenDC == 0 {
+		return
+	}
+	memDC, _, _ := procCreateCompatibleDC.Call(screenDC)
+	if memDC == 0 {
+		procReleaseDC2.Call(0, screenDC)
+		return
+	}
+	oldBmp, _, _ := procSelectObject.Call(memDC, frame.hbmp)
+
+	sz := sizeL{CX: int32(frame.width), CY: int32(frame.height)}
+	srcPt := pointL{X: 0, Y: 0}
+	blend := blendFunction{
+		BlendOp:             acSrcOver,
+		BlendFlags:          0,
+		SourceConstantAlpha: 255,
+		AlphaFormat:         acSrcAlpha,
+	}
+
+	procUpdateLayeredWindow.Call(
+		hwnd,
+		screenDC,
+		0,
+		uintptr(unsafe.Pointer(&sz)),
+		memDC,
+		uintptr(unsafe.Pointer(&srcPt)),
+		0,
+		uintptr(unsafe.Pointer(&blend)),
+		ulwAlpha,
+	)
+
+	procSelectObject.Call(memDC, oldBmp)
+	procDeleteDC.Call(memDC)
+	procReleaseDC2.Call(0, screenDC)
+}
+
 func splashWndProc2(hwnd, msgID, wParam, lParam uintptr) uintptr {
 	switch uint32(msgID) {
-	case wmPaint2:
-		var ps paintStruct2
-		hdc, _, _ := procBeginPaint2.Call(hwnd, uintptr(unsafe.Pointer(&ps)))
-		if hdc != 0 && globalSplash2 != nil {
-			globalSplash2.mu.Lock()
-			idx := globalSplash2.current
-			frames := globalSplash2.frames
-			globalSplash2.mu.Unlock()
-
-			if idx < len(frames) {
-				f := frames[idx]
-				memDC, _, _ := procCreateCompatibleDC.Call(hdc)
-				procSelectObject.Call(memDC, f.hbmp)
-				procBitBlt.Call(hdc, 0, 0, uintptr(f.width), uintptr(f.height), memDC, 0, 0, srccopy)
-				procDeleteDC.Call(memDC)
-			}
-		}
-		procEndPaint2.Call(hwnd, uintptr(unsafe.Pointer(&ps)))
-		return 0
-
 	case wmTimer2:
 		if globalSplash2 != nil {
 			globalSplash2.mu.Lock()
@@ -351,11 +427,12 @@ func splashWndProc2(hwnd, msgID, wParam, lParam uintptr) uintptr {
 			if len(frames) > 1 {
 				globalSplash2.current = (globalSplash2.current + 1) % len(frames)
 				idx := globalSplash2.current
-				delay := frames[idx].delay
+				next := frames[idx]
+				delay := next.delay
 				globalSplash2.mu.Unlock()
 				procKillTimer2.Call(hwnd, timerID2)
 				procSetTimer2.Call(hwnd, timerID2, uintptr(delay.Milliseconds()), 0)
-				procInvalidateRect2.Call(hwnd, 0, 0)
+				updateLayeredFrame(hwnd, next)
 			} else {
 				globalSplash2.mu.Unlock()
 			}
@@ -423,18 +500,18 @@ func showSplashFrames(frames []splashFrame) (*SplashWindow, error) {
 
 		title, _ := windows.UTF16PtrFromString("")
 		hwnd, _, _ := procCreateWindowExW2.Call(
-			0,
+			wsExLayered,
 			uintptr(unsafe.Pointer(className)),
 			uintptr(unsafe.Pointer(title)),
-			wsPopup2|wsVisible2,
+			wsPopup2,
 			uintptr(x), uintptr(y),
 			uintptr(f0.width), uintptr(f0.height),
 			0, 0, hInst, 0,
 		)
 
 		globalSplash2.hwnd = hwnd
+		updateLayeredFrame(hwnd, f0)
 		procShowWindow2.Call(hwnd, swShow2)
-		procUpdateWindow2.Call(hwnd)
 
 		if len(frames) > 1 {
 			procSetTimer2.Call(hwnd, timerID2, uintptr(frames[0].delay.Milliseconds()), 0)
