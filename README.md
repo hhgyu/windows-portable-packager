@@ -168,6 +168,33 @@ Embed via `portablePackager.splash` in your electron-builder `package.json`, or 
 ## Localization
 UI messages (dialogs, log output) are automatically displayed in **Korean** or **English** based on the system locale. Korean (`ko-*`) is detected on Windows via `GetUserDefaultLocaleName`; all other locales fall back to English.
 
+## Troubleshooting
+
+### The launcher hangs on first run / nothing happens when I double-click
+
+The launcher is a **large unsigned executable** (it embeds the entire app payload, often 100+ MB). Some security products treat such binaries as suspicious and run **deep behavioural analysis** before allowing execution. When that analysis stalls, the launcher process is blocked at the OS image-loader stage — before any of our code runs.
+
+**Symptoms:**
+- Launcher window never appears
+- Process stays alive in Task Manager with steady CPU usage
+- No `%APPDATA%\<productName>\app\` directory ever gets created
+- Even `--help` / `-v` produce no output
+
+**Built-in safeguards:**
+The launcher includes two defenses to limit the damage of this scenario:
+- **Single-instance mutex** — additional double-clicks exit immediately instead of piling up zombie processes
+- **60-second startup watchdog** — if the launcher cannot start the app within 60 seconds it terminates itself and shows a dialog
+
+**Resolutions, in order of preference:**
+1. **Add an exclusion in your security software** for the launcher executable (or the entire output directory). The exact menu varies by product; look for "Exclusions", "Exceptions", "Trusted applications", "Allow list", or similar terms.
+2. **Disable application sandboxing / behavioural analysis** if a per-file exclusion is not enough. Many endpoint protection suites have a separate "isolation" or "deep analysis" feature that is not covered by simple file allow-lists.
+3. **Sign the launcher** with a code-signing certificate (self-signed is enough to clear most heuristics; an EV certificate clears Microsoft SmartScreen reputation as well). This is the only resolution that does not require user-side configuration.
+
+If the launcher still hangs after these steps, please open an issue with:
+- Your OS version (`winver`)
+- The security software you have installed
+- Output of `Get-Process <appname>* | Select Id, CPU, WorkingSet64, Threads` while the launcher is hung
+
 ## Requirements
 - Go must be installed for manual builds.
 - Go is not required when using the npm package with pre-built binaries.
