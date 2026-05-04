@@ -90,6 +90,27 @@ describe("resolveConfig", () => {
       expect(resolveConfig(pkgPath).splashMinDuration).toBe(0);
     }
   });
+
+  test("lenientLockDetect=true이면 그대로 true", () => {
+    const pkgPath = makePkgJson(tmpDir, {
+      name: "my-app",
+      version: "1.0.0",
+      portablePackager: { lenientLockDetect: true },
+    });
+    expect(resolveConfig(pkgPath).lenientLockDetect).toBe(true);
+  });
+
+  test("lenientLockDetect 미지정/falsy면 false", () => {
+    const cases = [undefined, false, 0, null, "true", 1];
+    for (const v of cases) {
+      const pkgPath = makePkgJson(tmpDir, {
+        name: "my-app",
+        version: "1.0.0",
+        portablePackager: v === undefined ? {} : { lenientLockDetect: v },
+      });
+      expect(resolveConfig(pkgPath).lenientLockDetect).toBe(false);
+    }
+  });
 });
 
 describe("resolveBin", () => {
@@ -198,7 +219,32 @@ describe("runHook", () => {
     expect(execCalls).toHaveLength(1);
     expect(execCalls[0].args).toContain("MyApp");
     expect(execCalls[0].args).toContain("2.0.0");
+    expect(execCalls[0].args).not.toContain("-lenient-lock-detect");
     expect(execGoCalls).toHaveLength(1);
+  });
+
+  test("lenientLockDetect=true이면 -lenient-lock-detect 플래그 전달", async () => {
+    const outDir = path.join(tmpDir, "out");
+    makeUnpacked(outDir, "MyApp.exe");
+    const packagerDir = makePackagerDir(tmpDir);
+    const pkgJsonPath = makePkgJson(tmpDir, {
+      name: "my-app",
+      version: "1.0.0",
+      build: { productName: "MyApp" },
+      portablePackager: { lenientLockDetect: true },
+    });
+
+    const execCalls = [];
+
+    await runHook({ outDir }, {
+      pkgJsonPath,
+      packagerDir,
+      exec: (bin, args) => execCalls.push({ bin, args }),
+      execGo: () => {},
+      generateSysoFn: () => {},
+    });
+
+    expect(execCalls[0].args).toContain("-lenient-lock-detect");
   });
 
   test("exec 실패 시 skipped 반환 + embedPath 복원", async () => {

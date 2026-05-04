@@ -137,6 +137,7 @@ func packCmd(args []string) {
 	exeName := fs.String("exe", "", "Main executable name (default: <app>.exe)")
 	splashPath := fs.String("splash", "", "Splash image path (png/jpg/gif/apng)")
 	splashMinDur := fs.Int("splash-min-duration", 0, "Minimum splash visible time in ms (default 0 = close immediately)")
+	lenientLock := fs.Bool("lenient-lock-detect", false, "Use legacy DELETE+share-all probe instead of strict share=0 (off by default; use only if you hit false positives)")
 	compression := fs.String("compression", "zstd", "Compression format: zstd, gzip")
 	level := fs.Int("level", 0, "Compression level (zstd: 1-19, gzip: 1-9, 0=default)")
 	fs.Parse(reorderFlags(args))
@@ -168,7 +169,7 @@ func packCmd(args []string) {
 		*output = fmt.Sprintf("%s-%s-%s%s", *appName, *version, *arch, app.PackageExt)
 	}
 
-	opts := app.PackOptions{Level: *level, SplashMinMs: *splashMinDur}
+	opts := app.PackOptions{Level: *level, SplashMinMs: *splashMinDur, LenientLockDetect: *lenientLock}
 	switch *compression {
 	case "gzip":
 		opts.Compression = app.CompressionGzip

@@ -41,10 +41,17 @@ func isFileLocked(path string) bool {
 		return false
 	}
 
+	access := uint32(windows.GENERIC_READ)
+	share := uint32(0)
+	if isLockDetectLenient() {
+		access = windows.DELETE
+		share = windows.FILE_SHARE_READ | windows.FILE_SHARE_WRITE | windows.FILE_SHARE_DELETE
+	}
+
 	h, err := windows.CreateFile(
 		p,
-		windows.DELETE,
-		windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE|windows.FILE_SHARE_DELETE,
+		access,
+		share,
 		nil,
 		windows.OPEN_EXISTING,
 		windows.FILE_FLAG_BACKUP_SEMANTICS,

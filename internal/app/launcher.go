@@ -43,6 +43,7 @@ func runFromEmbedded(exeOverride string, splash *SplashWindow) error {
 		return fmt.Errorf("read embedded package: %w", err)
 	}
 	applySplashMin(splash, manifest)
+	ConfigureLockDetect(manifest.LenientLockDetect)
 	LogVerbose(fmt.Sprintf("Package: %s %s (%s)", manifest.AppName, manifest.Version, manifest.Arch))
 
 	config := NewConfig(manifest.AppName, manifest.Version, manifest.Arch)
@@ -107,6 +108,7 @@ func runFromFile(pkgPath, exeOverride string, splash *SplashWindow) error {
 		return fmt.Errorf("read package: %w", err)
 	}
 	applySplashMin(splash, manifest)
+	ConfigureLockDetect(manifest.LenientLockDetect)
 	LogVerbose(fmt.Sprintf("Package: %s %s (%s)", manifest.AppName, manifest.Version, manifest.Arch))
 
 	config := NewConfig(manifest.AppName, manifest.Version, manifest.Arch)

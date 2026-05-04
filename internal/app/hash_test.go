@@ -309,6 +309,15 @@ func TestEqualForInstallDetectsSplashMinMsChange(t *testing.T) {
 	}
 }
 
+func TestEqualForInstallDetectsLenientLockDetectChange(t *testing.T) {
+	a := baseManifest()
+	b := baseManifest()
+	b.LenientLockDetect = true
+	if a.EqualForInstall(b) {
+		t.Fatal("changed LenientLockDetect must break equality so the new mode takes effect")
+	}
+}
+
 func TestEqualForInstallDetectsAppNameChange(t *testing.T) {
 	a := baseManifest()
 	b := baseManifest()

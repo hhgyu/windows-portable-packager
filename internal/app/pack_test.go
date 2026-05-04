@@ -156,6 +156,43 @@ func TestPackXZAndUnpack(t *testing.T) {
 	}
 }
 
+func TestPackPropagatesLenientLockDetect(t *testing.T) {
+	srcDir := t.TempDir()
+	createMockAppDir(t, srcDir)
+	outputPath := filepath.Join(t.TempDir(), "test.kbpkg")
+
+	if err := Pack(srcDir, outputPath, "TestApp", "1.0.0", "amd64", "KeyBridge.exe", "",
+		PackOptions{LenientLockDetect: true}); err != nil {
+		t.Fatal(err)
+	}
+
+	manifest, err := ReadPackageManifest(outputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !manifest.LenientLockDetect {
+		t.Fatal("LenientLockDetect=true did not propagate into manifest")
+	}
+}
+
+func TestPackOmitsLenientLockDetectByDefault(t *testing.T) {
+	srcDir := t.TempDir()
+	createMockAppDir(t, srcDir)
+	outputPath := filepath.Join(t.TempDir(), "test.kbpkg")
+
+	if err := Pack(srcDir, outputPath, "TestApp", "1.0.0", "amd64", "KeyBridge.exe", ""); err != nil {
+		t.Fatal(err)
+	}
+
+	manifest, err := ReadPackageManifest(outputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if manifest.LenientLockDetect {
+		t.Fatal("LenientLockDetect must default to false (strict mode)")
+	}
+}
+
 func TestPackZstdSmallerThanGzip(t *testing.T) {
 	srcDir := t.TempDir()
 	for i := 0; i < 10; i++ {

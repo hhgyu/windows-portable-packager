@@ -24,9 +24,10 @@ const (
 )
 
 type PackOptions struct {
-	Compression Compression
-	Level       int
-	SplashMinMs int
+	Compression       Compression
+	Level             int
+	SplashMinMs       int
+	LenientLockDetect bool
 }
 
 const SplashName = "_splash"
@@ -62,6 +63,7 @@ func Pack(srcDir, outputPath, appName, version, arch, exeName, splashPath string
 	if opt.SplashMinMs > 0 {
 		manifest.SplashMinMs = opt.SplashMinMs
 	}
+	manifest.LenientLockDetect = opt.LenientLockDetect
 
 	fmt.Printf("Packaging %d files (%s %s, arch %s)...\n", len(manifest.Files), appName, version, arch)
 

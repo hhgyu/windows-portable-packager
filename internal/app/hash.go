@@ -12,14 +12,15 @@ import (
 )
 
 type Manifest struct {
-	AppName     string               `json:"appName"`
-	Version     string               `json:"version"`
-	Arch        string               `json:"arch"`
-	Exe         string               `json:"exe"`
-	Splash      string               `json:"splash,omitempty"`
-	SplashMinMs int                  `json:"splashMinMs,omitempty"`
-	Timestamp   string               `json:"timestamp"`
-	Files       map[string]FileEntry `json:"files"`
+	AppName           string               `json:"appName"`
+	Version           string               `json:"version"`
+	Arch              string               `json:"arch"`
+	Exe               string               `json:"exe"`
+	Splash            string               `json:"splash,omitempty"`
+	SplashMinMs       int                  `json:"splashMinMs,omitempty"`
+	LenientLockDetect bool                 `json:"lenientLockDetect,omitempty"`
+	Timestamp         string               `json:"timestamp"`
+	Files             map[string]FileEntry `json:"files"`
 }
 
 type FileEntry struct {
@@ -153,7 +154,8 @@ func (m *Manifest) EqualForInstall(other *Manifest) bool {
 		m.Arch != other.Arch ||
 		m.Exe != other.Exe ||
 		m.Splash != other.Splash ||
-		m.SplashMinMs != other.SplashMinMs {
+		m.SplashMinMs != other.SplashMinMs ||
+		m.LenientLockDetect != other.LenientLockDetect {
 		return false
 	}
 	if len(m.Files) != len(other.Files) {

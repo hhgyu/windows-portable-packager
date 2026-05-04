@@ -51,3 +51,17 @@ func TestLockedExecutablesNoExeReturnsEmpty(t *testing.T) {
 		t.Fatalf("expected empty, got %v", got)
 	}
 }
+
+func TestConfigureLockDetectTogglesLenient(t *testing.T) {
+	defer ConfigureLockDetect(false)
+
+	ConfigureLockDetect(true)
+	if !isLockDetectLenient() {
+		t.Fatal("ConfigureLockDetect(true) must enable lenient mode")
+	}
+
+	ConfigureLockDetect(false)
+	if isLockDetectLenient() {
+		t.Fatal("ConfigureLockDetect(false) must disable lenient mode")
+	}
+}
