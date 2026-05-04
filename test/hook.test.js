@@ -69,6 +69,27 @@ describe("resolveConfig", () => {
     expect(config.exeName).toBe("Custom.exe");
     expect(config.goArch).toBe("386");
   });
+
+  test("splashMinDuration 양수면 그대로 반환", () => {
+    const pkgPath = makePkgJson(tmpDir, {
+      name: "my-app",
+      version: "1.0.0",
+      portablePackager: { splashMinDuration: 1500 },
+    });
+    expect(resolveConfig(pkgPath).splashMinDuration).toBe(1500);
+  });
+
+  test("splashMinDuration 미지정/0/음수/비정수면 0", () => {
+    const cases = [undefined, 0, -100, 1.5, "2000", null];
+    for (const v of cases) {
+      const pkgPath = makePkgJson(tmpDir, {
+        name: "my-app",
+        version: "1.0.0",
+        portablePackager: v === undefined ? {} : { splashMinDuration: v },
+      });
+      expect(resolveConfig(pkgPath).splashMinDuration).toBe(0);
+    }
+  });
 });
 
 describe("resolveBin", () => {

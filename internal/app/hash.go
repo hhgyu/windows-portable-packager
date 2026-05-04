@@ -12,13 +12,14 @@ import (
 )
 
 type Manifest struct {
-	AppName   string               `json:"appName"`
-	Version   string               `json:"version"`
-	Arch      string               `json:"arch"`
-	Exe       string               `json:"exe"`
-	Splash    string               `json:"splash,omitempty"`
-	Timestamp string               `json:"timestamp"`
-	Files     map[string]FileEntry `json:"files"`
+	AppName     string               `json:"appName"`
+	Version     string               `json:"version"`
+	Arch        string               `json:"arch"`
+	Exe         string               `json:"exe"`
+	Splash      string               `json:"splash,omitempty"`
+	SplashMinMs int                  `json:"splashMinMs,omitempty"`
+	Timestamp   string               `json:"timestamp"`
+	Files       map[string]FileEntry `json:"files"`
 }
 
 type FileEntry struct {

@@ -26,6 +26,7 @@ const (
 type PackOptions struct {
 	Compression Compression
 	Level       int
+	SplashMinMs int
 }
 
 const SplashName = "_splash"
@@ -57,6 +58,9 @@ func Pack(srcDir, outputPath, appName, version, arch, exeName, splashPath string
 	manifest, err := GenerateManifest(srcDir, appName, version, arch, exeName, splashExt)
 	if err != nil {
 		return fmt.Errorf("generate manifest: %w", err)
+	}
+	if opt.SplashMinMs > 0 {
+		manifest.SplashMinMs = opt.SplashMinMs
 	}
 
 	fmt.Printf("Packaging %d files (%s %s, arch %s)...\n", len(manifest.Files), appName, version, arch)

@@ -136,6 +136,7 @@ func packCmd(args []string) {
 	arch := fs.String("arch", "amd64", "Target architecture: amd64, 386, arm64")
 	exeName := fs.String("exe", "", "Main executable name (default: <app>.exe)")
 	splashPath := fs.String("splash", "", "Splash image path (png/jpg/gif/apng)")
+	splashMinDur := fs.Int("splash-min-duration", 0, "Minimum splash visible time in ms (default 0 = close immediately)")
 	compression := fs.String("compression", "zstd", "Compression format: zstd, gzip")
 	level := fs.Int("level", 0, "Compression level (zstd: 1-19, gzip: 1-9, 0=default)")
 	fs.Parse(reorderFlags(args))
@@ -167,7 +168,7 @@ func packCmd(args []string) {
 		*output = fmt.Sprintf("%s-%s-%s%s", *appName, *version, *arch, app.PackageExt)
 	}
 
-	opts := app.PackOptions{Level: *level}
+	opts := app.PackOptions{Level: *level, SplashMinMs: *splashMinDur}
 	switch *compression {
 	case "gzip":
 		opts.Compression = app.CompressionGzip
