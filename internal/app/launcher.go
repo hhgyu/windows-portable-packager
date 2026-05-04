@@ -5,7 +5,18 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 )
+
+// applySplashMin pushes the manifest's SplashMinMs onto the splash window so
+// that a successful Close honours it. SetMinVisible is a no-op when zero so
+// callers do not need to branch on whether the manifest set the field.
+func applySplashMin(splash *SplashWindow, m *Manifest) {
+	if splash == nil || m == nil {
+		return
+	}
+	splash.SetMinVisible(time.Duration(m.SplashMinMs) * time.Millisecond)
+}
 
 func Run(pkgPath, exeOverride, splashOverride string) error {
 	var splash *SplashWindow
@@ -28,9 +39,10 @@ func Run(pkgPath, exeOverride, splashOverride string) error {
 func runFromEmbedded(exeOverride string, splash *SplashWindow) error {
 	manifest, err := ReadEmbeddedManifest()
 	if err != nil {
-		splash.Close()
+		splash.ForceClose()
 		return fmt.Errorf("read embedded package: %w", err)
 	}
+	applySplashMin(splash, manifest)
 	LogVerbose(fmt.Sprintf("Package: %s %s (%s)", manifest.AppName, manifest.Version, manifest.Arch))
 
 	config := NewConfig(manifest.AppName, manifest.Version, manifest.Arch)
@@ -46,7 +58,11 @@ func runFromEmbedded(exeOverride string, splash *SplashWindow) error {
 			LogVerbose(T(MsgAlreadyInstalled))
 			CleanOldVersions(config, []string{manifest.Version})
 			err := launch(filepath.Join(config.VersionDir, exeName))
-			splash.Close()
+			if err != nil {
+				splash.ForceClose()
+			} else {
+				splash.Close()
+			}
 			return err
 		}
 	}
@@ -55,7 +71,7 @@ func runFromEmbedded(exeOverride string, splash *SplashWindow) error {
 	LogVerbose(fmt.Sprintf(T(MsgExtracting), config.VersionDir))
 	extracted, err := UnpackEmbedded(config.VersionDir)
 	if err != nil {
-		splash.Close()
+		splash.ForceClose()
 		return fmt.Errorf("unpack: %w", err)
 	}
 
@@ -66,7 +82,11 @@ func runFromEmbedded(exeOverride string, splash *SplashWindow) error {
 		exePath = filepath.Join(config.VersionDir, exeOverride)
 	}
 	err = launch(exePath)
-	splash.Close()
+	if err != nil {
+		splash.ForceClose()
+	} else {
+		splash.Close()
+	}
 	return err
 }
 
@@ -79,9 +99,10 @@ func runFromFile(pkgPath, exeOverride string, splash *SplashWindow) error {
 
 	manifest, err := ReadPackageManifest(pkg)
 	if err != nil {
-		splash.Close()
+		splash.ForceClose()
 		return fmt.Errorf("read package: %w", err)
 	}
+	applySplashMin(splash, manifest)
 	LogVerbose(fmt.Sprintf("Package: %s %s (%s)", manifest.AppName, manifest.Version, manifest.Arch))
 
 	config := NewConfig(manifest.AppName, manifest.Version, manifest.Arch)
@@ -97,7 +118,11 @@ func runFromFile(pkgPath, exeOverride string, splash *SplashWindow) error {
 			LogVerbose(T(MsgAlreadyInstalled))
 			CleanOldVersions(config, []string{manifest.Version})
 			err := launch(filepath.Join(config.VersionDir, exeName))
-			splash.Close()
+			if err != nil {
+				splash.ForceClose()
+			} else {
+				splash.Close()
+			}
 			return err
 		}
 	}
@@ -106,7 +131,7 @@ func runFromFile(pkgPath, exeOverride string, splash *SplashWindow) error {
 	LogVerbose(fmt.Sprintf(T(MsgExtracting), config.VersionDir))
 	extracted, err := Unpack(pkg, config.VersionDir)
 	if err != nil {
-		splash.Close()
+		splash.ForceClose()
 		return fmt.Errorf("unpack: %w", err)
 	}
 
@@ -117,7 +142,11 @@ func runFromFile(pkgPath, exeOverride string, splash *SplashWindow) error {
 		exePath = filepath.Join(config.VersionDir, exeOverride)
 	}
 	err = launch(exePath)
-	splash.Close()
+	if err != nil {
+		splash.ForceClose()
+	} else {
+		splash.Close()
+	}
 	return err
 }
 
@@ -125,23 +154,28 @@ func launchLatest(exeOverride string, splash *SplashWindow) error {
 	config := NewConfig("", "", DetectArch())
 	latest, err := GetLatestVersion(config)
 	if err != nil {
-		splash.Close()
+		splash.ForceClose()
 		return fmt.Errorf("no installed version found — place a %s file next to this executable", PackageExt)
 	}
 
 	config.Version = latest
 	manifest, err := LoadManifest(config.ManifestPath())
 	if err != nil {
-		splash.Close()
+		splash.ForceClose()
 		return fmt.Errorf("load manifest for %s: %w", latest, err)
 	}
+	applySplashMin(splash, manifest)
 
 	exePath := filepath.Join(config.VersionDir, manifest.Exe)
 	if exeOverride != "" {
 		exePath = filepath.Join(config.VersionDir, exeOverride)
 	}
 	err = launch(exePath)
-	splash.Close()
+	if err != nil {
+		splash.ForceClose()
+	} else {
+		splash.Close()
+	}
 	return err
 }
 

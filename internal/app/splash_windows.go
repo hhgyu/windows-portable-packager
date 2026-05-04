@@ -491,8 +491,21 @@ func splashWndProc2(hwnd, msgID, wParam, lParam uintptr) uintptr {
 }
 
 type SplashWindow struct {
-	done chan struct{}
-	wg   sync.WaitGroup
+	done       chan struct{}
+	wg         sync.WaitGroup
+	startedAt  time.Time
+	minVisible time.Duration
+}
+
+// SetMinVisible asks Close to keep the splash on screen for at least d after
+// it was first shown. ForceClose still bypasses this. Safe to call once after
+// ShowSplashFromData / ShowSplash; calling more than once or after Close has
+// no effect.
+func (sw *SplashWindow) SetMinVisible(d time.Duration) {
+	if sw == nil || d <= 0 {
+		return
+	}
+	sw.minVisible = d
 }
 
 func ShowSplashFromData(data []byte, ext string) (*SplashWindow, error) {
@@ -643,7 +656,7 @@ func loadRemainingFramesAsync(data []byte, ext string) {
 }
 
 func showSplashFrames(frames []splashFrame) (*SplashWindow, error) {
-	sw := &SplashWindow{done: make(chan struct{})}
+	sw := &SplashWindow{done: make(chan struct{}), startedAt: time.Now()}
 	globalSplash2 = &splashData{frames: frames, done: sw.done}
 
 	ready := make(chan struct{})
@@ -741,10 +754,33 @@ func ShowSplash(imagePath string) (*SplashWindow, error) {
 	return showSplashFrames(frames)
 }
 
+// Close honours SetMinVisible: if the splash has been on screen for less than
+// minVisible, it sleeps the remainder before tearing the window down. Use
+// this on the success path after the child has spawned. Use ForceClose on
+// error paths so a failing launcher does not strand the user staring at a
+// splash that will not advance.
 func (sw *SplashWindow) Close() {
 	if sw == nil {
 		return
 	}
+	if sw.minVisible > 0 && !sw.startedAt.IsZero() {
+		if remaining := sw.minVisible - time.Since(sw.startedAt); remaining > 0 {
+			time.Sleep(remaining)
+		}
+	}
+	sw.tearDown()
+}
+
+// ForceClose tears the splash window down immediately, bypassing minVisible.
+// Reserved for error/abort paths.
+func (sw *SplashWindow) ForceClose() {
+	if sw == nil {
+		return
+	}
+	sw.tearDown()
+}
+
+func (sw *SplashWindow) tearDown() {
 	select {
 	case <-sw.done:
 	default:
