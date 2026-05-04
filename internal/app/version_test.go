@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestListInstalledVersionsEmpty(t *testing.T) {
@@ -123,6 +124,18 @@ func TestGetLatestVersion(t *testing.T) {
 	os.MkdirAll(filepath.Join(config.AppDir, "2.0.0", "sub"), 0755)
 	m2 := &Manifest{Version: "2.0.0", Exe: "app.exe", Files: map[string]FileEntry{}}
 	m2.Save(filepath.Join(config.AppDir, "2.0.0", ManifestName))
+
+	// GetLatestVersion picks the manifest with the newest mtime. NTFS mtime
+	// resolution can collapse two near-instant writes to the same value, so
+	// pin explicit timestamps to keep the test deterministic.
+	older := time.Now().Add(-2 * time.Hour)
+	newer := time.Now().Add(-1 * time.Hour)
+	if err := os.Chtimes(filepath.Join(config.AppDir, "1.0.0", ManifestName), older, older); err != nil {
+		t.Fatalf("chtimes 1.0.0: %v", err)
+	}
+	if err := os.Chtimes(filepath.Join(config.AppDir, "2.0.0", ManifestName), newer, newer); err != nil {
+		t.Fatalf("chtimes 2.0.0: %v", err)
+	}
 
 	latest, err := GetLatestVersion(config)
 	if err != nil {
