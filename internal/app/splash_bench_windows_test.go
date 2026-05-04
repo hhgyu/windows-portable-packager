@@ -66,6 +66,24 @@ func BenchmarkLoadAPNGFrames(b *testing.B) {
 	}
 }
 
+// BenchmarkLoadFirstFrameFast measures the latency of the async fast path
+// taken by ShowSplashFromData before background loading kicks in. This is
+// what the user actually waits to see on screen.
+func BenchmarkLoadFirstFrameFast(b *testing.B) {
+	data := makeBenchAPNG(b, 560, 400, 120)
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		f, ok := loadFirstFrameFast(data, ".apng")
+		if !ok {
+			b.Fatal("first frame decode failed")
+		}
+		if f.hbmp != 0 {
+			procDeleteObject.Call(f.hbmp)
+		}
+	}
+}
+
 func BenchmarkPremultiplyRGBAToBGRA(b *testing.B) {
 	const w, h = 560, 400
 	src := makeRandomRGBA(w, h)

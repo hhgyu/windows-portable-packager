@@ -509,11 +509,105 @@ type SplashWindow struct {
 }
 
 func ShowSplashFromData(data []byte, ext string) (*SplashWindow, error) {
+	if isAnimatedSplashExt(ext) {
+		if first, ok := loadFirstFrameFast(data, ext); ok {
+			sw, err := showSplashFrames([]splashFrame{first})
+			if err != nil {
+				if first.hbmp != 0 {
+					procDeleteObject.Call(first.hbmp)
+				}
+				return sw, err
+			}
+			go loadRemainingFramesAsync(data, ext)
+			return sw, nil
+		}
+	}
+
 	frames, err := loadSplashFramesFromData(data, ext)
 	if err != nil || len(frames) == 0 {
 		return nil, err
 	}
 	return showSplashFrames(frames)
+}
+
+func isAnimatedSplashExt(ext string) bool {
+	e := strings.ToLower(ext)
+	return e == ".gif" || e == ".apng" || e == ".png"
+}
+
+// loadFirstFrameFast decodes only the first/default frame so the splash window
+// can appear in ~5 ms instead of waiting for the full animation pipeline (~100 ms+).
+// For APNG, png.Decode returns the IHDR + first IDAT image, which is also the
+// APNG default frame and visually matches the animation's first frame in
+// nearly all real-world assets.
+func loadFirstFrameFast(data []byte, ext string) (splashFrame, bool) {
+	switch strings.ToLower(ext) {
+	case ".gif":
+		img, err := gif.Decode(bytes.NewReader(data))
+		if err != nil {
+			return splashFrame{}, false
+		}
+		return rasterFirstFrame(img), true
+	case ".png", ".apng":
+		img, _, err := image.Decode(bytes.NewReader(data))
+		if err != nil {
+			return splashFrame{}, false
+		}
+		return rasterFirstFrame(img), true
+	}
+	return splashFrame{}, false
+}
+
+func rasterFirstFrame(img image.Image) splashFrame {
+	bounds := img.Bounds()
+	rgba := image.NewRGBA(image.Rect(0, 0, bounds.Dx(), bounds.Dy()))
+	draw.Draw(rgba, rgba.Rect, img, bounds.Min, draw.Src)
+	hbmp, w, h := imageToBitmap(rgba)
+	return splashFrame{hbmp: hbmp, width: w, height: h, delay: 100 * time.Millisecond}
+}
+
+// loadRemainingFramesAsync runs on a background goroutine after the splash is
+// already on screen with its first frame. It performs the full APNG/GIF decode
+// + per-frame premultiply, then atomically swaps globalSplash2.frames so the
+// timer can advance through the real animation. Old frames (the placeholder
+// first frame) are released after the swap.
+func loadRemainingFramesAsync(data []byte, ext string) {
+	frames, err := loadSplashFramesFromData(data, ext)
+	if err != nil || len(frames) == 0 {
+		return
+	}
+
+	g := globalSplash2
+	if g == nil {
+		for _, f := range frames {
+			if f.hbmp != 0 {
+				procDeleteObject.Call(f.hbmp)
+			}
+		}
+		return
+	}
+
+	g.mu.Lock()
+	old := g.frames
+	g.frames = frames
+	g.current = 0
+	hwnd := g.hwnd
+	g.mu.Unlock()
+
+	for _, f := range old {
+		if f.hbmp != 0 {
+			procDeleteObject.Call(f.hbmp)
+		}
+	}
+
+	if hwnd != 0 && len(frames) > 1 {
+		updateLayeredFrame(hwnd, frames[0])
+		delay := frames[0].delay
+		if delay < 20*time.Millisecond {
+			delay = 100 * time.Millisecond
+		}
+		procSetTimer2.Call(hwnd, timerID2, uintptr(delay.Milliseconds()), 0)
+	}
 }
 
 func showSplashFrames(frames []splashFrame) (*SplashWindow, error) {
@@ -526,9 +620,18 @@ func showSplashFrames(frames []splashFrame) (*SplashWindow, error) {
 	go func() {
 		defer sw.wg.Done()
 		defer func() {
-			for _, f := range frames {
-				if f.hbmp != 0 {
-					procDeleteObject.Call(f.hbmp)
+			// Read the current frames (may have been swapped by
+			// loadRemainingFramesAsync after the splash was created)
+			// and free those, not the originally captured slice.
+			if g := globalSplash2; g != nil {
+				g.mu.Lock()
+				cur := g.frames
+				g.frames = nil
+				g.mu.Unlock()
+				for _, f := range cur {
+					if f.hbmp != 0 {
+						procDeleteObject.Call(f.hbmp)
+					}
 				}
 			}
 			globalSplash2 = nil
